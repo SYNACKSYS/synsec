@@ -1,0 +1,97 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Comptes</h1>
+    <p class="subtitle">
+      Créer un compte n'ouvre aucun coffre : chacun ne voit que ce qui lui a
+      été partagé, toi compris.
+    </p>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Personne</th><th>Rôle</th><th>Créé le</th><th>Dernière connexion</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Accounts}}
+      <tr>
+        <td>
+          {{.DisplayName}} <span class="muted">({{.Username}})</span>
+          {{if .IsSelf}}<span class="pill">toi</span>{{end}}
+        </td>
+        <td class="num">
+          {{if .IsRoot}}compte principal{{else if .IsAdmin}}administrateur{{else}}utilisateur{{end}}
+        </td>
+        <td class="when">{{date .CreatedAt}}</td>
+        <td class="when">{{date .LastLoginAt}}</td>
+        <td class="actions">
+          <div class="actions-row">
+            <a class="btn btn-secondary btn-sm"
+               href="/comptes/motdepasse?user={{.ID}}">Mot de passe</a>
+            {{if and (not .IsSelf) (not .IsRoot)}}
+            <form method="post" action="/comptes/supprimer"
+                  data-confirm="Supprimer le compte {{.Username}} ?">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="user" value="{{.ID}}">
+              <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+            </form>
+            {{end}}
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<div class="page-head section">
+  <div>
+    <h1>Nouveau compte</h1>
+    <p class="subtitle">
+      Choisis un premier mot de passe et transmets-le de vive voix ; la
+      personne pourra le changer ensuite.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/comptes">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="username">Nom d'utilisateur</label>
+        <input id="username" name="username" type="text" placeholder="alice"
+               autocomplete="off" required>
+      </div>
+
+      <div class="field">
+        <label for="display_name">Nom affiché</label>
+        <input id="display_name" name="display_name" type="text" placeholder="Alice">
+        <p class="help">Facultatif.</p>
+      </div>
+
+      <div class="field">
+        <label for="password">Mot de passe initial</label>
+        <input id="password" name="password" type="password"
+               autocomplete="new-password" required>
+        <p class="help">Dix caractères au minimum.</p>
+      </div>
+
+      <div class="field field-check">
+        <input id="is_admin" name="is_admin" type="checkbox" value="1">
+        <label for="is_admin">Administrateur - peut gérer les comptes</label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Créer le compte</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

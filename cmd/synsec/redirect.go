@@ -1,0 +1,161 @@
+package main
+
+import (
+	"net"
+	"net/http"
+	"sync"
+	"time"
+)
+
+// SYNSEC listens on a single port and serves TLS on it. A caller who arrives
+// in plain HTTP - a browser given "HV-01:8787", which presumes http:// - is
+// sent to the same address over HTTPS rather than refused.
+//
+// A refusal would be the stricter reading, but it produces an unexplained
+// connection error and invites people to look for a way around it. The
+// redirect is the only thing ever answered without TLS: no page, no secret and
+// no cookie is served in clear, and the request body is never even read.
+
+const (
+	// tlsRecordHandshake is the first byte of every TLS ClientHello.
+	tlsRecordHandshake = 0x16
+
+	// peekTimeout bounds how long a connection may sit without saying which
+	// protocol it speaks.
+	peekTimeout = 10 * time.Second
+
+	// plainBacklog caps the connections waiting to be redirected.
+	plainBacklog = 32
+)
+
+// splitListener routes each accepted connection by its first byte: TLS
+// handshakes go to the real server, everything else to the redirector.
+type splitListener struct {
+	net.Listener
+
+	plain     chan net.Conn
+	closeOnce sync.Once
+	closed    chan struct{}
+}
+
+func newSplitListener(inner net.Listener) *splitListener {
+	return &splitListener{
+		Listener: inner,
+		plain:    make(chan net.Conn, plainBacklog),
+		closed:   make(chan struct{}),
+	}
+}
+
+// Accept returns only TLS connections. Plain ones are handed to the
+// redirector and the loop continues, so the TLS server never sees them.
+func (l *splitListener) Accept() (net.Conn, error) {
+	for {
+		conn, err := l.Listener.Accept()
+		if err != nil {
+			return nil, err
+		}
+
+		peeked, isTLS, err := peekProtocol(conn)
+		if err != nil {
+			conn.Close()
+			continue
+		}
+		if isTLS {
+			return peeked, nil
+		}
+
+		select {
+		case l.plain <- peeked:
+		case <-l.closed:
+			peeked.Close()
+		default:
+			// The redirector is saturated. Dropping beats blocking the accept
+			// loop and starving the connections that matter.
+			peeked.Close()
+		}
+	}
+}
+
+func (l *splitListener) Close() error {
+	l.closeOnce.Do(func() { close(l.closed) })
+	return l.Listener.Close()
+}
+
+// Plain is the listener the redirector serves.
+func (l *splitListener) Plain() net.Listener {
+	return &plainListener{source: l}
+}
+
+// plainListener presents the non-TLS connections as a listener of their own.
+type plainListener struct {
+	source *splitListener
+}
+
+func (p *plainListener) Accept() (net.Conn, error) {
+	select {
+	case conn := <-p.source.plain:
+		return conn, nil
+	case <-p.source.closed:
+		return nil, net.ErrClosed
+	}
+}
+
+func (p *plainListener) Close() error   { return nil }
+func (p *plainListener) Addr() net.Addr { return p.source.Addr() }
+
+// peekProtocol reads the first byte to tell a TLS handshake from anything
+// else, and returns a connection that will replay it.
+func peekProtocol(conn net.Conn) (net.Conn, bool, error) {
+	if err := conn.SetReadDeadline(time.Now().Add(peekTimeout)); err != nil {
+		return nil, false, err
+	}
+
+	first := make([]byte, 1)
+	n, err := conn.Read(first)
+	if err != nil || n == 0 {
+		return nil, false, err
+	}
+
+	// The deadline was for the peek alone; the server sets its own afterwards.
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		return nil, false, err
+	}
+	return &peekedConn{Conn: conn, prefix: first[:n]}, first[0] == tlsRecordHandshake, nil
+}
+
+// peekedConn hands back the bytes already read before deferring to the
+// connection underneath.
+type peekedConn struct {
+	net.Conn
+	prefix []byte
+}
+
+func (c *peekedConn) Read(b []byte) (int, error) {
+	if len(c.prefix) > 0 {
+		n := copy(b, c.prefix)
+		c.prefix = c.prefix[n:]
+		return n, nil
+	}
+	return c.Conn.Read(b)
+}
+
+// httpsRedirect answers every plain-HTTP request with a permanent redirect to
+// the same address over TLS, and answers nothing else.
+func httpsRedirect() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if host == "" {
+			// Nothing else is known about where the caller meant to go.
+			http.Error(w, "SYNSEC ne répond qu'en HTTPS.", http.StatusBadRequest)
+			return
+		}
+
+		// Same host and port, since TLS is served on this very listener.
+		target := "https://" + host + r.URL.RequestURI()
+
+		// 308 rather than 301: it preserves the method, so a device posting a
+		// secret retries as a POST instead of silently turning it into a GET.
+		w.Header().Set("Connection", "close")
+		http.Redirect(w, r, target, http.StatusPermanentRedirect)
+	})
+}

@@ -1,0 +1,102 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}">{{.Vault.Name}}</a><span class="sep">/</span>
+  partages de {{.Secret.Name}}
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Partager <code>{{.Secret.Name}}</code></h1>
+    <p class="subtitle">
+      Ce secret seul. Les personnes ci-dessous n'auront accès à rien d'autre
+      dans « {{.Vault.Name}} », qui restera invisible pour elles.
+    </p>
+  </div>
+</div>
+
+{{if .Members}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Personne</th><th>Accès</th><th>Depuis</th><th>Partagé par</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Members}}
+      <tr>
+        <td>{{.DisplayName}} <span class="muted">({{.Username}})</span></td>
+        <td class="num">{{.Role.Label}}</td>
+        <td class="when">{{date .GrantedAt}}</td>
+        <td class="num">{{.GrantedBy}}</td>
+        <td class="actions">
+          <div class="actions-row">
+            <form method="post" action="/coffres/{{$.Vault.ID}}/partages/retirer"
+                  data-confirm="Retirer l'accès de {{.Username}} à ce secret ?">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="name" value="{{$.Secret.Name}}">
+              <input type="hidden" name="user" value="{{.UserID}}">
+              <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="card empty">
+  <h2>Ce secret n'est partagé avec personne</h2>
+  <p>Seuls les membres du coffre peuvent le voir.</p>
+</div>
+{{end}}
+
+<div class="page-head section">
+  <div><h1>Confier ce secret</h1></div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    {{if .Candidates}}
+    <form method="post" action="/coffres/{{.Vault.ID}}/partages">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="name" value="{{.Secret.Name}}">
+
+      <div class="field">
+        <label for="user">Personne</label>
+        <select id="user" name="user" required>
+          {{range .Candidates}}
+          <option value="{{.ID}}">{{.DisplayName}} ({{.Username}})</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="role">Niveau d'accès</label>
+        <select id="role" name="role">
+          <option value="reader">Lecture - consulter la valeur</option>
+          <option value="writer">Écriture - la modifier aussi</option>
+        </select>
+        <p class="help">
+          La suppression reste réservée au coffre : personne ne peut effacer ce
+          secret parce qu'on le lui a confié.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Partager</button>
+        <a class="btn btn-ghost" href="/coffres/{{.Vault.ID}}">Retour au coffre</a>
+      </div>
+    </form>
+    {{else}}
+    <p class="help">
+      Tous les comptes existants ont déjà accès à ce secret, directement ou par
+      le coffre.
+    </p>
+    {{end}}
+  </div>
+</div>
+{{end}}

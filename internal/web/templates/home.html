@@ -1,0 +1,98 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Mes coffres</h1>
+    <p class="subtitle">
+      Un coffre regroupe les secrets d'un même usage : ta domotique,
+      tes sauvegardes, un projet.
+    </p>
+  </div>
+  <a class="btn btn-primary" href="/coffres/nouveau">Nouveau coffre</a>
+</div>
+
+{{if .Vaults}}
+<ul class="vault-grid">
+  {{range .Vaults}}
+  <li>
+    <a class="vault-card" href="/coffres/{{.ID}}">
+      <h2>{{.Name}}</h2>
+      {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
+      <p class="meta">
+        <span class="pill">{{.Secrets}} {{plural .Secrets "secret" "secrets"}}</span>
+        <span>créé le {{date .CreatedAt}}</span>
+      </p>
+    </a>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<div class="card empty">
+  <h2>Tu ne gères aucun coffre</h2>
+  <p>
+    Commence par en créer un - « Maison » pour ta domotique, par exemple.
+    Tu y rangeras ensuite tes mots de passe et tes clés.
+  </p>
+  <a class="btn btn-primary" href="/coffres/nouveau">Créer mon premier coffre</a>
+</div>
+{{end}}
+
+{{if .SharedVaults}}
+<div class="page-head section">
+  <div>
+    <h1>Coffres partagés avec moi</h1>
+    <p class="subtitle">
+      Créés par quelqu'un d'autre, qui t'y a donné accès.
+    </p>
+  </div>
+</div>
+
+<ul class="vault-grid">
+  {{range .SharedVaults}}
+  <li>
+    <a class="vault-card" href="/coffres/{{.ID}}">
+      <h2>{{.Name}}</h2>
+      {{if .Description}}<p class="desc">{{.Description}}</p>{{end}}
+      <p class="meta">
+        <span class="pill">{{.Secrets}} {{plural .Secrets "secret" "secrets"}}</span>
+        <span class="pill pill-quiet">{{.Role.Label}}</span>
+      </p>
+      {{if .OwnerName}}<p class="muted small">de {{.OwnerName}}</p>{{end}}
+    </a>
+  </li>
+  {{end}}
+</ul>
+{{end}}
+
+{{if .Shared}}
+<div class="page-head section">
+  <div>
+    <h1>Secrets partagés avec moi</h1>
+    <p class="subtitle">
+      Des secrets isolés, confiés un par un. Le reste de leur coffre ne t'est
+      pas accessible.
+    </p>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Nom</th><th>Coffre</th><th>Accès</th><th>Modifié le</th></tr>
+    </thead>
+    <tbody>
+      {{range .Shared}}
+      <tr>
+        <td class="path">
+          <a href="/coffres/{{.VaultID}}/secret?name={{.Name}}">{{.Display}}</a>
+          <span class="slug"><code>{{.Name}}</code></span>
+        </td>
+        <td class="num">{{.VaultName}}</td>
+        <td class="num">{{.Role.Label}}</td>
+        <td class="when">{{date .UpdatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+{{end}}

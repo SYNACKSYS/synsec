@@ -1,0 +1,41 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>nouveau
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Nouveau coffre</h1>
+    <p class="subtitle">
+      Chaque coffre a sa propre clé de chiffrement, indépendante des autres.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/coffres">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="name">Nom</label>
+        <input id="name" name="name" type="text" placeholder="Maison"
+               autofocus required>
+        <p class="help">Le nom que tu reconnaîtras d'un coup d'œil.</p>
+      </div>
+
+      <div class="field">
+        <label for="description">Description</label>
+        <input id="description" name="description" type="text"
+               placeholder="Domotique, Home Assistant, Zigbee">
+        <p class="help">Facultative.</p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Créer le coffre</button>
+        <a class="btn btn-ghost" href="/">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

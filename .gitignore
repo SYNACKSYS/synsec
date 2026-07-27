@@ -1,0 +1,23 @@
+# Binaires compilés. Les chemins sont ancrés à la racine avec « / » pour ne
+# pas emporter les dossiers cmd/synsec et cmd/synsec-agent, qui portent les
+# mêmes noms.
+/synsec
+/synsec.exe
+/synsec-agent
+/synsec-agent.exe
+/dist/
+/Release/
+
+# Données d'exécution. Rien de tout ça ne doit partir dans un dépôt : la clé
+# racine et la base contiennent, ensemble, tous les secrets en clair.
+*.db
+*.db-wal
+*.db-shm
+*.key
+*.crt
+*.log
+root.key
+
+# Systèmes
+Thumbs.db
+.DS_Store

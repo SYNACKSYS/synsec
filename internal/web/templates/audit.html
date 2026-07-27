@@ -1,0 +1,88 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Journal</h1>
+    <p class="subtitle">
+      Tout ce qui a été fait sur ce serveur : les lectures autant que les
+      écritures. Les valeurs des secrets n'y figurent jamais.
+    </p>
+  </div>
+  {{if .User.IsRoot}}
+  <div class="actions-row">
+    <a class="btn btn-secondary" href="/journal/acces">Qui peut lire</a>
+  </div>
+  {{end}}
+</div>
+
+<div class="card card-filters">
+  <div class="card-body">
+    <form method="get" action="/journal" class="filters">
+      <div class="field">
+        <label for="q">Recherche</label>
+        <input id="q" name="q" type="search" value="{{.Search}}"
+               placeholder="un compte, un secret, un appareil">
+      </div>
+
+      <div class="field">
+        <label for="action">Action</label>
+        <select id="action" name="action">
+          <option value="">Toutes</option>
+          {{range .AuditActions}}
+          <option value="{{.Value}}" {{if .Current}}selected{{end}}>{{.Label}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="periode">Période</label>
+        <select id="periode" name="periode">
+          {{range .AuditPeriods}}
+          <option value="{{.Value}}" {{if .Current}}selected{{end}}>{{.Label}}</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="field field-submit">
+        <button type="submit" class="btn btn-primary">Filtrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{if .Audit}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Quand</th><th>Qui</th><th>Action</th><th>Sur</th>
+        <th>Adresse</th><th>Détail</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Audit}}
+      <tr>
+        <td class="when">{{date .At}}</td>
+        <td>{{.Actor}}</td>
+        <td>{{.Action}}</td>
+        <td class="path">{{if .Target}}<code>{{.Target}}</code>{{else}}-{{end}}</td>
+        <td class="num">{{if .IP}}{{.IP}}{{else}}-{{end}}</td>
+        <td class="num">{{.Detail}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+{{if .Truncated}}
+<p class="hint">
+  Seules les 200 lignes les plus récentes sont affichées. Affine la recherche
+  ou la période pour voir plus loin.
+</p>
+{{end}}
+{{else}}
+<div class="card empty">
+  <h2>Rien à afficher</h2>
+  <p>Aucune entrée ne correspond à ces critères sur la période choisie.</p>
+</div>
+{{end}}
+{{end}}

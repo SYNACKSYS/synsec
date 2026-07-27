@@ -1,0 +1,45 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-head">
+    <div class="mark">SYNSEC</div>
+    <p>Version {{.Version}}</p>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <h2>Licence</h2>
+      <p class="help">Copyright &copy; 2026 Cyril Pineiro - SYNACKSYS</p>
+      <p class="help">
+        SYNSEC est un logiciel libre, distribué sous <strong>GNU Affero General
+        Public License version 3</strong>. Tu peux l'utiliser, l'étudier, le
+        modifier et le redistribuer.
+      </p>
+      <p class="help">
+        Il est fourni <strong>sans aucune garantie</strong>, dans la mesure
+        permise par la loi. Le texte complet de la licence accompagne le code
+        source, dans le fichier <code>LICENSE</code>.
+      </p>
+
+      <h2 class="stacked">Code source</h2>
+      {{if .SourceURL}}
+      <p class="help">
+        Le code de cette version est disponible ici :
+      </p>
+      <p><a href="{{.SourceURL}}" rel="noreferrer">{{.SourceURL}}</a></p>
+      {{else}}
+      <p class="help">
+        La personne qui a installé ce serveur n'a pas indiqué où trouver le
+        code de cette version. Demande-le-lui : la licence lui impose de te le
+        fournir.
+      </p>
+      <p class="help">
+        Pour l'indiquer, recompiler avec
+        <code>-ldflags "-X synsec/internal/web.SourceURL=..."</code>.
+      </p>
+      {{end}}
+    </div>
+  </div>
+
+  <p class="hint"><a href="/">Retour</a></p>
+</div>
+{{end}}

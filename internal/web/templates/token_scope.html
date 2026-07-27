@@ -1,0 +1,66 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}">{{.Vault.Name}}</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}/appareils">appareils</a><span class="sep">/</span>portée
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Portée de {{.Token.Name}}</h1>
+    <p class="subtitle">
+      Ce à quoi cet appareil a droit dans le coffre. Le changement prend effet
+      à sa prochaine requête, sans avoir à lui redonner un jeton.
+    </p>
+  </div>
+</div>
+
+{{if .Secrets}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/coffres/{{.Vault.ID}}/appareils/portee">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="token" value="{{.Token.ID}}">
+
+      <div class="field">
+        <label>Secrets accessibles</label>
+        <p class="help">
+          Rien de coché : tout le coffre, y compris les secrets ajoutés plus
+          tard. Dès qu'une case est cochée, l'appareil n'atteint plus que ce
+          qui est coché - et un secret créé ensuite ne s'y ajoute pas tout seul.
+        </p>
+        <div class="check-list">
+          {{range .Secrets}}
+          <div class="field-check">
+            <input id="scope-{{.Name}}" name="secret" type="checkbox" value="{{.Name}}"
+                   {{if .InScope}}checked{{end}}>
+            <label for="scope-{{.Name}}">
+              {{.Display}} <span class="slug"><code>{{.Name}}</code></span>
+            </label>
+          </div>
+          {{end}}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a class="btn btn-ghost" href="/coffres/{{.Vault.ID}}/appareils">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{if .Token.Secrets}}
+<p class="hint">
+  Cet appareil est restreint à {{len .Token.Secrets}}
+  {{plural (len .Token.Secrets) "secret" "secrets"}}. Décoche tout pour lui
+  rendre le coffre entier.
+</p>
+{{end}}
+{{else}}
+<div class="card empty">
+  <h2>Ce coffre est vide</h2>
+  <p>Il n'y a encore aucun secret sur lequel régler une portée.</p>
+</div>
+{{end}}
+{{end}}

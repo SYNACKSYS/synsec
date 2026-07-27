@@ -1,0 +1,58 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Paramètres</h1>
+    <p class="subtitle">
+      Ces réglages ne concernent que ton compte : ils te suivent d'un
+      navigateur à l'autre et ne changent rien pour les autres utilisateurs.
+    </p>
+  </div>
+</div>
+
+<div class="page-head section">
+  <div>
+    <h1>Apparence</h1>
+    <p class="subtitle">
+      La taille de l'interface, si tu la trouves trop grande ou trop petite.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/parametres/apparence">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="scale">Taille d'affichage</label>
+        <select id="scale" name="scale">
+          {{range .Scales}}
+          <option value="{{.Value}}" {{if .Current}}selected{{end}}>{{.Label}}</option>
+          {{end}}
+        </select>
+        <p class="help">
+          Équivaut au zoom du navigateur, mais enregistré : plus besoin de le
+          régler sur chaque appareil.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="page-head section">
+  <div>
+    <h1>Session</h1>
+    <p class="subtitle">Réglé sur le serveur, identique pour tout le monde.</p>
+  </div>
+</div>
+
+<p class="hint">
+  Ton navigateur est déconnecté après <strong>{{.SessionIdle}}</strong> sans
+  activité. Chaque page consultée remet le compteur à zéro, donc une interface
+  en cours d'utilisation ne se ferme jamais toute seule.
+</p>
+{{end}}

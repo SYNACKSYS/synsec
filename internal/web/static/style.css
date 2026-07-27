@@ -1,0 +1,824 @@
+/* SYNSEC - feuille de style unique, sans dépendance externe.
+   Thème clair et sombre suivant le système : personne ne devrait avoir à
+   régler l'apparence d'un serveur de secrets. */
+
+:root {
+  /* Surfaces, du fond vers le premier plan */
+  --bg: #f4f5f7;
+  --sidebar: #16181d;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --border: #e2e5ea;
+  --border-strong: #cfd4dc;
+
+  /* Texte */
+  --text: #15181d;
+  --text-muted: #656d79;
+  --text-inverse: #f2f4f7;
+  --text-inverse-muted: #9aa3b0;
+
+  /* Accent */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
+  --accent-text: #ffffff;
+
+  /* États */
+  --danger: #b42318;
+  --danger-soft: #fef3f2;
+  --danger-border: #fecdc9;
+  --ok: #067647;
+  --ok-soft: #ecfdf3;
+  --ok-border: #abefc6;
+
+  /* Rythme */
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 4%);
+  --shadow-lg: 0 4px 12px rgb(16 24 40 / 8%);
+  /* In rem so the shell follows the chosen display size, the way a browser
+     zoom moves the whole page rather than only its text. */
+  --sidebar-width: 14.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --sidebar: #0a0c0f;
+    --surface: #171a20;
+    --surface-2: #1c2027;
+    --border: #262b33;
+    --border-strong: #343a44;
+
+    --text: #e7eaee;
+    --text-muted: #939ba7;
+    --text-inverse: #e7eaee;
+    --text-inverse-muted: #7d8794;
+
+    --accent: #6366f1;
+    --accent-hover: #7c7ff3;
+    --accent-soft: #1e2130;
+    --accent-text: #ffffff;
+
+    --danger: #f27a72;
+    --danger-soft: #2a1717;
+    --danger-border: #4a2626;
+    --ok: #6ee7a8;
+    --ok-soft: #10241a;
+    --ok-border: #1f4433;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-lg: 0 6px 20px rgb(0 0 0 / 45%);
+  }
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Display size, chosen per account in the settings.
+   Everything below is sized in rem, so setting the root font-size scales the
+   whole interface - text, spacing and controls together - the way the
+   browser's own zoom does, but without having to set it on each device. */
+html { font-size: 100%; }
+
+.scale-80  { font-size: 80%; }
+.scale-90  { font-size: 90%; }
+.scale-100 { font-size: 100%; }
+.scale-110 { font-size: 110%; }
+.scale-125 { font-size: 125%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  /* In rem, not the 15px it used to be: an absolute size here would ignore
+     the scale above and leave the text alone while everything moved. */
+  font: 0.9375rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.011em;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.05rem; }
+
+p { margin: 0; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: .9em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Ossature ------------------------------------------------------------ */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.25rem 1rem;
+  background: var(--sidebar);
+  color: var(--text-inverse);
+}
+
+.brand {
+  display: block;
+  padding: .25rem .5rem;
+  color: var(--text-inverse);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: .14em;
+}
+
+.brand:hover { text-decoration: none; }
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: .125rem;
+  flex: 1;
+}
+
+.nav-label {
+  padding: 0 .5rem;
+  margin-bottom: .375rem;
+  color: var(--text-inverse);
+  font-size: .7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.nav a,
+.nav button {
+  display: block;
+  width: 100%;
+  padding: .5rem .625rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-inverse-muted);
+  font: inherit;
+  font-size: .9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav a:hover,
+.nav button:hover {
+  background: rgb(255 255 255 / 7%);
+  color: var(--text-inverse);
+  text-decoration: none;
+}
+
+.nav a[aria-current="page"] {
+  background: rgb(255 255 255 / 10%);
+  color: var(--text-inverse);
+  font-weight: 600;
+}
+
+.nav-action {
+  margin-top: .75rem;
+  color: var(--text-inverse) !important;
+  border: 1px dashed rgb(255 255 255 / 22%) !important;
+  text-align: center !important;
+}
+
+.sidebar-foot {
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.whoami {
+  display: block;
+  padding: 0 .625rem .5rem;
+  color: var(--text-inverse);
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.sidebar-foot form { margin: 0; }
+
+.foot-actions {
+  display: flex;
+  gap: .25rem;
+  padding: 0 .375rem;
+}
+
+/* A square target holding an icon. The wording lives in title and aria-label,
+   so the button still says what it does to a screen reader and on hover. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-inverse-muted);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: rgb(255 255 255 / 7%);
+  color: var(--text-inverse);
+}
+
+.icon-btn svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.content {
+  padding: 2rem 2.25rem 4rem;
+  max-width: 68.75rem;
+  width: 100%;
+}
+
+/* En-tête de page ----------------------------------------------------- */
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.page-head .subtitle {
+  margin-top: .25rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+.page-head.section {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+.crumbs {
+  margin-bottom: .75rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+.crumbs a { color: var(--text-muted); }
+.crumbs a:hover { color: var(--accent); }
+.crumbs .sep { margin: 0 .375rem; opacity: .5; }
+
+/* Boutons ------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: .5rem .875rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+
+.btn:hover { text-decoration: none; }
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.btn-secondary:hover { background: var(--surface-2); }
+
+.btn-danger {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+
+.btn-sm {
+  padding: .3rem .625rem;
+  font-size: .8rem;
+}
+
+.btn-ghost {
+  background: none;
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover { color: var(--text); }
+
+.btn-block { width: 100%; }
+
+/* Cartes -------------------------------------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card-body { padding: 1.25rem; }
+.card-narrow { max-width: 26rem; width: 100%; }
+
+.vault-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.vault-card {
+  display: block;
+  padding: 1.125rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+
+.vault-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lg);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.vault-card h2 { color: var(--text); }
+
+.vault-card .desc {
+  margin-top: .25rem;
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+
+.vault-card .meta {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .875rem;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+
+.pill {
+  padding: .15rem .5rem;
+  background: var(--accent-soft);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: .75rem;
+  font-weight: 600;
+}
+
+/* Tableau ------------------------------------------------------------- */
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead th {
+  padding: .625rem 1rem;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: .72rem;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: .75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+
+td.path code {
+  font-size: .9rem;
+  font-weight: 500;
+  color: var(--text);
+  /* A path is one token: wrapping it mid-word makes it unreadable and
+     misaligns the row. The table scrolls sideways instead. */
+  white-space: nowrap;
+}
+
+td.num,
+td.when {
+  color: var(--text-muted);
+  font-size: .85rem;
+  white-space: nowrap;
+}
+
+td.actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* Buttons start at the same place on every row.
+   Pushed to the right instead, a row holding one button would line it up under
+   its neighbour's last button rather than its first, and a list where some
+   rows carry an action others do not - the account list - comes out ragged. */
+.actions-row {
+  display: flex;
+  gap: .5rem;
+  justify-content: flex-start;
+}
+
+.actions-row form { margin: 0; }
+
+/* Formulaires --------------------------------------------------------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+  margin-bottom: 1.125rem;
+}
+
+.field label {
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="password"],
+textarea,
+select {
+  width: 100%;
+  padding: .55rem .7rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: .9375rem;
+}
+
+select:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* The account name beside a display name, inside a table row. */
+td .muted {
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+
+.field-check {
+  flex-direction: row;
+  align-items: center;
+  gap: .5rem;
+}
+
+.field-check input { width: auto; }
+.field-check label { font-weight: 500; }
+
+.nav-label-spaced { margin-top: 1rem; }
+
+td .pill { margin-left: .375rem; }
+
+textarea {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: .9rem;
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--text-muted); opacity: .7; }
+
+input:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+input[readonly] {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.help {
+  color: var(--text-muted);
+  font-size: .825rem;
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding-top: .25rem;
+}
+
+/* Messages ------------------------------------------------------------ */
+
+.alert {
+  padding: .75rem 1rem;
+  margin-bottom: 1.25rem;
+  border: 1px solid;
+  border-radius: var(--radius-sm);
+  font-size: .9rem;
+}
+
+.alert-danger {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.alert-ok {
+  background: var(--ok-soft);
+  border-color: var(--ok-border);
+  color: var(--ok);
+}
+
+.empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty h2 { margin-bottom: .5rem; }
+
+.empty p {
+  max-width: 30rem;
+  margin: 0 auto 1.25rem;
+  color: var(--text-muted);
+}
+
+.hint {
+  margin-top: 1rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+}
+
+/* Present for screen readers, absent from the layout - used on the actions
+   column header, which needs a name but no visible title. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+/* Connexion ----------------------------------------------------------- */
+
+.auth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.auth-card { max-width: 23rem; width: 100%; }
+
+.auth-head {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.auth-head .mark {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.auth-head p {
+  margin-top: .375rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+/* Écrans étroits ------------------------------------------------------ */
+
+@media (max-width: 820px) {
+  .shell { grid-template-columns: 1fr; }
+
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    gap: .75rem;
+    padding: .625rem .875rem;
+    overflow-x: auto;
+  }
+
+  .nav {
+    flex-direction: row;
+    align-items: center;
+    gap: .25rem;
+  }
+
+  /* Collapsed into a bar, the entries sit next to each other and the
+     full-width highlight of the sidebar turns into a heavy block. */
+  .nav a,
+  .nav button {
+    width: auto;
+    padding: .35rem .625rem;
+    font-size: .85rem;
+  }
+
+  .nav a[aria-current="page"] { background: rgb(255 255 255 / 8%); }
+
+  .nav-label { display: none; }
+  .nav-action { margin-top: 0; }
+
+  .sidebar-foot {
+    padding-top: 0;
+    border-top: 0;
+    margin-left: auto;
+  }
+
+  .whoami { display: none; }
+
+  .content { padding: 1.5rem 1.125rem 3rem; }
+
+  .actions-row { gap: .375rem; }
+}
+
+/* The identifier shown under the label a person wrote: present for whoever
+   needs to configure a device, quiet for everyone else. */
+.slug {
+  display: block;
+  margin-top: .15rem;
+  color: var(--text-muted);
+  font-size: .8rem;
+}
+
+.slug code { font-size: inherit; }
+
+/* A quieter pill, for a level of access rather than a count. */
+.pill-quiet {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* A freshly minted token, shown once and never again. */
+.reveal {
+  margin-bottom: 2rem;
+  border-color: var(--accent);
+}
+
+.token,
+.snippet {
+  margin: .5rem 0 1rem;
+  padding: .75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: .85rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.token {
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* An existing value is blurred until the field is focused.
+   Pure CSS on purpose: no script means nothing to go wrong, and the value is
+   still selectable and copyable for anyone who needs it without looking. */
+textarea.masked {
+  filter: blur(5px);
+  transition: filter .12s ease;
+}
+
+textarea.masked:focus {
+  filter: none;
+}
+
+/* Filters above the journal: one row that wraps rather than a stack of
+   fields, so the table stays visible while they are being adjusted. */
+.card-filters { margin-bottom: 1.5rem; }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem;
+}
+
+.filters .field {
+  flex: 1 1 12rem;
+  margin-bottom: 0;
+}
+
+.filters .field-submit { flex: 0 0 auto; }
+
+input[type="search"] {
+  width: 100%;
+  padding: .5rem .625rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: .9rem;
+}
+
+/* A list of tick boxes inside a field: the vault's secrets, when choosing what
+   a device may reach. Scrolls rather than pushing the buttons off the page. */
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.check-list .field-check { margin-bottom: 0; }
+.check-list .slug { display: inline; margin-left: .375rem; }
+
+/* A card holding an irreversible action. Bordered rather than filled: the
+   warning inside is already red, and two red blocks read as decoration. */
+.card-danger { border-color: var(--danger-border); }
+
+/* The licence notice in the sidebar foot. Discreet but present: the licence
+   asks for it to be visible, not for it to shout. */
+.legal {
+  display: block;
+  padding: 0 .625rem .5rem;
+  color: var(--text-inverse-muted);
+  font-size: .7rem;
+}
+
+.legal:hover { color: var(--text-inverse); }
+
+/* A heading opening a new block inside a card. */
+h2.stacked { margin-top: 1.5rem; }

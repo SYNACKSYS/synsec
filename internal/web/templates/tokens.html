@@ -1,0 +1,155 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}">{{.Vault.Name}}</a><span class="sep">/</span>appareils
+</p>
+
+{{if .NewToken}}
+<div class="card reveal">
+  <div class="card-body">
+    <h2>Voici le jeton de ton appareil</h2>
+    <p class="help">
+      Copie-le maintenant : il ne sera plus jamais affiché. Il n'est conservé
+      que sous forme d'empreinte - perdu, il se remplace, il ne se retrouve pas.
+    </p>
+
+    <pre class="token">{{.NewToken}}</pre>
+
+    <p class="help">Pour vérifier qu'il fonctionne :</p>
+    <pre class="snippet">curl -H "Authorization: Bearer {{.NewToken}}" \
+     "https://{{.Host}}/api/v1/secrets"</pre>
+
+    <p class="help">Home Assistant, dans <code>secrets.yaml</code> :</p>
+    <pre class="snippet">synsec_token: "Bearer {{.NewToken}}"</pre>
+  </div>
+</div>
+{{end}}
+
+<div class="page-head">
+  <div>
+    <h1>Appareils de {{.Vault.Name}}</h1>
+    <p class="subtitle">
+      Un jeton remplace le mot de passe pour une machine. Donne-en un par
+      appareil : révoquer celui d'une box ne coupe pas les autres.
+    </p>
+  </div>
+</div>
+
+{{if .Tokens}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Appareil</th><th>Portée</th><th>Droits</th><th>Adresses</th><th>État</th>
+        <th>Dernier usage</th><th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Tokens}}
+      <tr>
+        <td>{{.Name}}<span class="slug"><code>{{.ID}}</code></span></td>
+        <td class="path">
+          {{if .Secrets}}
+            {{range .Secrets}}<code>{{.}}</code> {{end}}
+          {{else}}
+            <span class="pill-quiet">tout le coffre</span>
+          {{end}}
+        </td>
+        <td class="num">{{if .CanWrite}}lecture et écriture{{else}}lecture seule{{end}}</td>
+        <td class="num">{{if .Addresses}}{{.Addresses}}{{else}}toutes{{end}}</td>
+        <td class="num">{{.State}}</td>
+        <td class="when">{{date .LastUsedAt}}</td>
+        <td class="actions">
+          {{if .Live}}
+          <div class="actions-row">
+            <a class="btn btn-secondary btn-sm"
+               href="/coffres/{{$.Vault.ID}}/appareils/portee?token={{.ID}}">Portée</a>
+            <form method="post" action="/coffres/{{$.Vault.ID}}/appareils/revoquer"
+                  data-confirm="Révoquer {{.Name}} ? L'appareil perdra l'accès immédiatement.">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="token" value="{{.ID}}">
+              <button type="submit" class="btn btn-danger btn-sm">Révoquer</button>
+            </form>
+          </div>
+          {{end}}
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="card empty">
+  <h2>Aucun appareil connecté</h2>
+  <p>Crée un jeton pour que ta box domotique vienne chercher ses secrets.</p>
+</div>
+{{end}}
+
+<div class="page-head section">
+  <div><h1>Connecter un appareil</h1></div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/coffres/{{.Vault.ID}}/appareils">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="name">Nom de l'appareil</label>
+        <input id="name" name="name" type="text" placeholder="Home Assistant"
+               autofocus required>
+      </div>
+
+      <div class="field">
+        <label for="expires">Validité</label>
+        <select id="expires" name="expires">
+          <option value="0">Sans limite</option>
+          <option value="30">30 jours</option>
+          <option value="90">90 jours</option>
+          <option value="365">1 an</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="addresses">Adresses autorisées</label>
+        <input id="addresses" name="addresses" type="text"
+               placeholder="192.168.1.72, 192.168.1.0/24">
+        <p class="help">
+          Facultatif. Laissé vide, le jeton fonctionne depuis n'importe où sur
+          ton réseau. Adresses IP ou blocs CIDR, séparés par des virgules.
+        </p>
+      </div>
+
+      <div class="field field-check">
+        <input id="can_write" name="can_write" type="checkbox" value="1">
+        <label for="can_write">Autoriser l'écriture - l'appareil pourra modifier des secrets</label>
+      </div>
+
+      {{if .Secrets}}
+      <div class="field">
+        <label>Portée</label>
+        <p class="help">
+          Coche les secrets dont cet appareil a besoin. Rien de coché, il aura
+          accès à tout le coffre, y compris aux secrets ajoutés plus tard.
+        </p>
+        <div class="check-list">
+          {{range .Secrets}}
+          <div class="field-check">
+            <input id="scope-{{.Name}}" name="secret" type="checkbox" value="{{.Name}}">
+            <label for="scope-{{.Name}}">
+              {{.Display}} <span class="slug"><code>{{.Name}}</code></span>
+            </label>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Créer le jeton</button>
+        <a class="btn btn-ghost" href="/coffres/{{.Vault.ID}}">Retour au coffre</a>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}

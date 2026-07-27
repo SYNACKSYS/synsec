@@ -1,0 +1,36 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-head">
+    <div class="mark">SYNSEC</div>
+    <p>Tes mots de passe et tes clés, chez toi.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {{if .Error}}<p class="alert alert-danger">{{.Error}}</p>{{end}}
+      {{if .Notice}}<p class="alert alert-ok">{{.Notice}}</p>{{end}}
+
+      <form method="post" action="/login">
+        <div class="field">
+          <label for="username">Nom d'utilisateur</label>
+          <input id="username" name="username" type="text"
+                 autocomplete="username" autofocus required>
+        </div>
+
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input id="password" name="password" type="password"
+                 autocomplete="current-password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Se connecter</button>
+      </form>
+    </div>
+  </div>
+
+  <p class="hint">
+    Pas encore de compte ? Crée-le sur le serveur avec
+    <code>synsec utilisateur create</code>.
+  </p>
+</div>
+{{end}}

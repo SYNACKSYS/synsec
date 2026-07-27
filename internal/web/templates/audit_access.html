@@ -1,0 +1,88 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/journal">Journal</a><span class="sep">/</span>qui peut lire
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Accès au journal</h1>
+    <p class="subtitle">
+      Ton compte lit le journal par nature. Tu peux l'ouvrir à d'autres
+      administrateurs, et le refermer quand tu veux.
+    </p>
+  </div>
+</div>
+
+<p class="hint">
+  Le journal recense ce qui a été fait dans tous les coffres, y compris ceux
+  que personne ne t'a partagés. L'ouvrir à quelqu'un lui montre donc quels
+  secrets existent et qui les consulte - pas leurs valeurs.
+</p>
+
+{{if .Members}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Personne</th><th>Depuis</th><th>Par</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Members}}
+      <tr>
+        <td>{{.DisplayName}} <span class="muted">({{.Username}})</span></td>
+        <td class="when">{{date .GrantedAt}}</td>
+        <td class="num">{{.GrantedBy}}</td>
+        <td class="actions">
+          <div class="actions-row">
+            <form method="post" action="/journal/acces/retirer">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="user" value="{{.UserID}}">
+              <button type="submit" class="btn btn-danger btn-sm">Retirer</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<p class="hint">Personne d'autre que toi ne lit le journal.</p>
+{{end}}
+
+<div class="page-head section">
+  <div>
+    <h1>Ouvrir à un administrateur</h1>
+  </div>
+</div>
+
+{{if .Candidates}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/journal/acces">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="user">Compte</label>
+        <select id="user" name="user" required>
+          {{range .Candidates}}
+          <option value="{{.ID}}">{{.DisplayName}} ({{.Username}})</option>
+          {{end}}
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Ouvrir le journal</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{else}}
+<p class="hint">
+  Aucun autre administrateur à qui l'ouvrir. Nomme quelqu'un administrateur
+  depuis <a href="/comptes">Comptes</a> pour pouvoir lui donner cet accès.
+</p>
+{{end}}
+{{end}}

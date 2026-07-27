@@ -1,0 +1,95 @@
+<!doctype html>
+{{/* The display size rides on the root element: everything below is sized in
+     rem, so one class scales the whole interface. A class rather than an
+     inline style because the policy this server sends forbids those. */}}
+<html lang="fr"{{if .Scale}} class="scale-{{.Scale}}"{{end}}>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if .Title}}{{.Title}} - SYNSEC{{else}}SYNSEC{{end}}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:,">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+
+{{if .User}}
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="/">SYNSEC</a>
+
+    <nav class="nav">
+      <span class="nav-label">Coffres</span>
+      <a href="/" {{if eq .Nav "coffres"}}aria-current="page"{{end}}>Mes coffres</a>
+      <a class="nav-action" href="/coffres/nouveau">+ Nouveau coffre</a>
+
+      <span class="nav-label nav-label-spaced">Paramètres</span>
+      <a href="/parametres" {{if eq .Nav "parametres"}}aria-current="page"{{end}}>Apparence</a>
+      <a href="/parametres/motdepasse" {{if eq .Nav "motdepasse"}}aria-current="page"{{end}}>Mot de passe</a>
+
+      {{if or .User.IsAdmin .CanReadAudit}}
+      <span class="nav-label nav-label-spaced">Administration</span>
+      {{if .User.IsAdmin}}
+      <a href="/comptes" {{if eq .Nav "comptes"}}aria-current="page"{{end}}>Comptes</a>
+      {{end}}
+      {{if .CanReadAudit}}
+      <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>
+      {{end}}
+      {{end}}
+    </nav>
+
+    <div class="sidebar-foot">
+      {{/* Required by the licence: a visible notice saying what this is and
+           where its source can be had. */}}
+      <a class="legal" href="/source">Logiciel libre - AGPL-3.0</a>
+      <span class="whoami">{{.User.DisplayName}}</span>
+      {{/* Icons rather than labels: two short-cuts on one line, each carrying
+           its wording in the tooltip and for screen readers. */}}
+      <div class="foot-actions">
+        <a class="icon-btn" href="/parametres/motdepasse"
+           title="Changer mon mot de passe" aria-label="Changer mon mot de passe">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="7.5" cy="15.5" r="3.5"/>
+            <path d="M10 13 20 3"/>
+            <path d="M17.5 5.5 20 8"/>
+            <path d="M15 7.5 17.5 10"/>
+          </svg>
+        </a>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button type="submit" class="icon-btn"
+                  title="Se déconnecter" aria-label="Se déconnecter">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14 20H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h8"/>
+              <path d="M17 16l4-4-4-4"/>
+              <path d="M21 12H10"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </div>
+  </aside>
+
+  <main class="content">
+    {{if .Sealed}}
+    <p class="alert alert-danger">
+      Le serveur est verrouillé : les secrets ne peuvent pas être lus.
+      Redémarre-le, ou utilise ton code de récupération.
+    </p>
+    {{end}}
+    {{if .Error}}<p class="alert alert-danger">{{.Error}}</p>{{end}}
+    {{if .Notice}}<p class="alert alert-ok">{{.Notice}}</p>{{end}}
+
+    {{template "content" .}}
+  </main>
+</div>
+{{else}}
+<main class="auth">
+  {{template "content" .}}
+</main>
+{{end}}
+
+</body>
+</html>

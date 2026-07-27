@@ -1,0 +1,150 @@
+// Package config resolves where SYNSEC keeps its files and how it listens.
+package config
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+
+	"synsec/internal/auth"
+)
+
+// DefaultPort is deliberately not 443 or 8443: SYNSEC should not collide with
+// whatever else the household already runs, and should never need to be
+// started with elevated privileges just to bind a port.
+const DefaultPort = "8787"
+
+// Environment variables that override the defaults, for people running SYNSEC
+// in a container or from a service unit.
+const (
+	EnvDataDir     = "SYNSEC_DATA_DIR"
+	EnvListen      = "SYNSEC_LISTEN"
+	EnvSessionIdle = "SYNSEC_SESSION_IDLE"
+)
+
+// Config is the resolved runtime configuration.
+type Config struct {
+	// DataDir holds the database, the certificate and, on hosts with no
+	// keystore, the key file.
+	DataDir string
+
+	// Listen is the address the HTTP server binds.
+	//
+	// It defaults to every interface rather than loopback: the entire point is
+	// that a Home Assistant box on the same network can reach it. Serving only
+	// localhost would mean nothing works until someone works out why.
+	Listen string
+
+	// TLSCert and TLSKey point at a certificate. Left empty, SYNSEC generates
+	// and reuses a self-signed one in DataDir.
+	//
+	// There is no way to turn TLS off. A plain-HTTP mode would exist for the
+	// reverse-proxy case and be used for everything else, and a secret server
+	// that can be talked into answering in clear on a home network is a secret
+	// server with a hole in it. A request that arrives without TLS is refused,
+	// not downgraded.
+	TLSCert string
+	TLSKey  string
+
+	// SessionIdle is how long a browser may sit untouched before the interface
+	// signs it out. Activity pushes it back, so it only ever catches a tab
+	// nobody is using.
+	SessionIdle time.Duration
+}
+
+// Default returns the configuration before any flag is applied.
+func Default() Config {
+	return Config{
+		DataDir:     DefaultDataDir(),
+		Listen:      envOr(EnvListen, ":"+DefaultPort),
+		SessionIdle: envDuration(EnvSessionIdle, auth.SessionIdle),
+	}
+}
+
+// envDuration reads a Go duration such as 30m or 8h.
+//
+// An unreadable value falls back to the default rather than failing to start:
+// a typo in a service unit must not leave the household without its secrets.
+func envDuration(key string, fallback time.Duration) time.Duration {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return fallback
+	}
+	return auth.ClampSessionIdle(d)
+}
+
+// DefaultDataDir picks the conventional location for the platform.
+//
+// A system-wide directory is right because SYNSEC runs as a service, started
+// before anyone logs in: a path under a user profile would not exist yet at
+// the moment the service needs it.
+func DefaultDataDir() string {
+	if dir := os.Getenv(EnvDataDir); dir != "" {
+		return dir
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		if base := os.Getenv("ProgramData"); base != "" {
+			return filepath.Join(base, "SYNSEC")
+		}
+		return filepath.Join(os.Getenv("SystemDrive")+string(filepath.Separator), "SYNSEC")
+	case "linux":
+		return "/var/lib/synsec"
+	default:
+		return filepath.Join(os.Getenv("HOME"), ".local", "share", "synsec")
+	}
+}
+
+// DatabasePath is where SQLite lives.
+func (c Config) DatabasePath() string { return filepath.Join(c.DataDir, "synsec.db") }
+
+// CertPath returns the certificate to use, generated if none was configured.
+func (c Config) CertPath() string {
+	if c.TLSCert != "" {
+		return c.TLSCert
+	}
+	return filepath.Join(c.DataDir, "synsec.crt")
+}
+
+// KeyPath returns the private key matching CertPath.
+func (c Config) KeyPath() string {
+	if c.TLSKey != "" {
+		return c.TLSKey
+	}
+	return filepath.Join(c.DataDir, "synsec.key")
+}
+
+// Prepare creates the data directory with restrictive permissions.
+func (c Config) Prepare() error {
+	if c.DataDir == "" {
+		return fmt.Errorf("config: no data directory")
+	}
+	// 0700: on Linux the database and possibly the key file live here, and
+	// nothing but the service account has any business reading them.
+	if err := os.MkdirAll(c.DataDir, 0o700); err != nil {
+		return fmt.Errorf("config: creating %s: %w", c.DataDir, err)
+	}
+	return nil
+}
+
+// Validate reports configurations that cannot work.
+func (c Config) Validate() error {
+	if (c.TLSCert == "") != (c.TLSKey == "") {
+		return fmt.Errorf("config: a certificate and its key must be given together")
+	}
+	return nil
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}

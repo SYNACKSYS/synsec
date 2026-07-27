@@ -1,0 +1,8 @@
+{{define "content"}}
+{{/* The layout has already shown .Error as a banner, so repeating the title
+     underneath would say the same thing twice. */}}
+<div class="card empty">
+  {{if not .Error}}<h2>{{.Title}}</h2>{{end}}
+  <a class="btn btn-primary" href="/">Retour aux coffres</a>
+</div>
+{{end}}

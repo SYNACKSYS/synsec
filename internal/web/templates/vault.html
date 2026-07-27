@@ -1,0 +1,126 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>{{.Vault.Name}}
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>{{.Vault.Name}}</h1>
+    {{if .Vault.Description}}
+    <p class="subtitle">{{.Vault.Description}}</p>
+    {{end}}
+  </div>
+  <div class="actions-row">
+    {{if .CanManage}}
+    <a class="btn btn-secondary" href="/coffres/{{.Vault.ID}}/appareils">Appareils</a>
+    <a class="btn btn-secondary" href="/coffres/{{.Vault.ID}}/membres">Membres</a>
+    {{end}}
+    {{if .CanWrite}}
+    <a class="btn btn-primary" href="/coffres/{{.Vault.ID}}/secret">Ajouter un secret</a>
+    {{end}}
+  </div>
+</div>
+
+{{if .Secrets}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Nom</th>
+        <th>Version</th>
+        <th>Modifié le</th>
+        <th><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Secrets}}
+      <tr>
+        <td class="path">
+          {{.Display}}
+          <span class="slug"><code>{{.Name}}</code></span>
+        </td>
+        <td class="num">v{{.Version}}</td>
+        <td class="when">{{date .UpdatedAt}}</td>
+        <td class="actions">
+          <div class="actions-row">
+            <a class="btn btn-secondary btn-sm"
+               href="/coffres/{{$.Vault.ID}}/secret?name={{.Name}}">
+              {{if $.CanWrite}}Modifier{{else}}Consulter{{end}}
+            </a>
+            {{if $.CanManage}}
+            <a class="btn btn-secondary btn-sm"
+               href="/coffres/{{$.Vault.ID}}/partages?name={{.Name}}">Partager</a>
+            {{end}}
+            {{if $.CanWrite}}
+            <form method="post" action="/coffres/{{$.Vault.ID}}/secret/supprimer"
+                  data-confirm="Supprimer {{.Name}} et tout son historique ?">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <input type="hidden" name="name" value="{{.Name}}">
+              <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+            </form>
+            {{end}}
+          </div>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+<p class="hint">
+  Les valeurs ne sont jamais affichées ici. Ouvrir un secret le déchiffre, et
+  cette consultation est enregistrée dans le journal.
+</p>
+{{else}}
+<div class="card empty">
+  <h2>Ce coffre est vide</h2>
+  <p>
+    Un secret porte un nom que tu écris librement, un identifiant technique
+    comme <code>mot_de_passe_mqtt</code> par lequel tes appareils le demandent,
+    et une valeur.
+  </p>
+  {{if .CanWrite}}
+  <a class="btn btn-primary" href="/coffres/{{.Vault.ID}}/secret">Ajouter le premier secret</a>
+  {{end}}
+</div>
+{{end}}
+
+{{if .CanDelete}}
+<div class="page-head section">
+  <div>
+    <h1>Supprimer ce coffre</h1>
+    <p class="subtitle">
+      Ses secrets, leur historique, ses appareils et ses partages partent avec
+      lui. Il n'y a pas de corbeille.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow card-danger">
+  <div class="card-body">
+    <form method="post" action="/coffres/{{.Vault.ID}}/supprimer">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <p class="alert alert-danger">
+        {{if .Secrets}}
+        Ce coffre contient {{len .Secrets}} {{plural (len .Secrets) "secret" "secrets"}}.
+        Les appareils qui les lisent cesseront de fonctionner.
+        {{else}}
+        Ce coffre est vide. Sa suppression ne coupe rien.
+        {{end}}
+      </p>
+
+      <div class="field">
+        <label for="confirm">Recopie le nom du coffre pour confirmer</label>
+        <input id="confirm" name="confirm" type="text" autocomplete="off"
+               placeholder="{{.Vault.Name}}" required>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+{{end}}

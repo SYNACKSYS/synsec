@@ -13,8 +13,9 @@ MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
   coffre a sa propre clé de chiffrement.
 - **Un secret est une entrée** avec un nom lisible et un identifiant technique.
   Tu écris « Mot de passe MQTT », tes appareils demandent `mot_de_passe_mqtt`.
-- **Une interface web** pour les humains, une **API REST** pour les machines,
-  une **ligne de commande** pour l'administration.
+- **Une interface web et une ligne de commande** qui se valent : les mêmes
+  coffres, les mêmes secrets, les mêmes droits. Une **API REST** à jetons pour
+  les appareils.
 - **Chacun ne voit que ce qui lui appartient** ou ce qu'on lui a partagé -
   l'administrateur du serveur compris.
 - **Démarrage automatique** en service Windows ou unité systemd, sans que

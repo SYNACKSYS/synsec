@@ -3,8 +3,10 @@ setlocal EnableDelayedExpansion
 
 rem SYNSEC - compilation et tests.
 rem
-rem Les tests passent AVANT l'arret du service : inutile de couper le serveur
-rem de la maison pour decouvrir ensuite que le code ne compile pas.
+rem Machine de developpement : on compile, on ne fait pas tourner de serveur.
+rem Aucun service n'est arrete ni relance ici, et aucun secret ne vit sur cette
+rem machine. Sur un hote qui heberge reellement SYNSEC, il faudrait arreter le
+rem service avant de remplacer synsec.exe, que le service tient ouvert.
 rem
 rem CGO_ENABLED=0 partout : c'est ce qui rend la compilation croisee possible
 rem sans chaine d'outils C, et ce qui donne un binaire sans dependance.
@@ -35,24 +37,12 @@ echo === Tests ===
 go test ./...
 if errorlevel 1 goto :fail
 
-rem Le service tient synsec.exe ouvert, donc il faut l'arreter pour le
-rem remplacer. A partir d'ici, tout echec doit quand meme le relancer.
-echo.
-echo === Arret du service ===
-net stop SYNSEC
-
 echo.
 echo === Binaires locaux ===
 go build -ldflags "%STAMP%" -o synsec.exe ./cmd/synsec
-if errorlevel 1 set "BUILD_FAILED=1"
+if errorlevel 1 goto :fail
 go build -ldflags "-X main.agentVersion=%VERSION%" -o synsec-agent.exe ./cmd/synsec-agent
-if errorlevel 1 set "BUILD_FAILED=1"
-
-echo.
-echo === Redemarrage du service ===
-net start SYNSEC
-
-if defined BUILD_FAILED goto :fail
+if errorlevel 1 goto :fail
 
 echo.
 echo === Compilation croisee ===

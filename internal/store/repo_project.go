@@ -23,9 +23,9 @@ type Project struct {
 	Description string
 	// OwnerID is who created the vault. Empty when the account has since been
 	// removed; the vault survives its owner.
-	OwnerID     string
-	WrappedDEK  []byte
-	CreatedAt   time.Time
+	OwnerID    string
+	WrappedDEK []byte
+	CreatedAt  time.Time
 }
 
 // Environment partitions a vault. Most installations only ever see the default

@@ -353,9 +353,6 @@ func TestForwardedHeaderIgnoredByDefault(t *testing.T) {
 	}
 }
 
-
-
-
 // pin restricts a secret to one address.
 func (h *harness) pin(t *testing.T, path, network string) {
 	t.Helper()
@@ -405,7 +402,6 @@ func TestPinnedSecretIsServedFromItsAddress(t *testing.T) {
 		t.Fatalf("the value came back as %q", got)
 	}
 }
-
 
 func TestSealedServerServesNothing(t *testing.T) {
 	h := newHarness(t)
@@ -489,7 +485,6 @@ func TestDeniedAccessIsAudited(t *testing.T) {
 		t.Fatalf("the denial names %q", entries[0].Target)
 	}
 }
-
 
 // A token narrowed to a few entries reaches those and nothing else, even
 // though it was issued for the vault they live in.

@@ -246,12 +246,12 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request) {
 	})
 
 	s.render(w, r, "secret.html", http.StatusOK, pageData{
-		Title:       secret.Name,
-		Nav:         "coffres",
-		User:        &user,
-		CSRF:        csrfFrom(r),
-		Sealed:      s.vault.Sealed(),
-		Vault:       &vaultRow{ID: vault.ID, Name: vault.Name},
+		Title:  secret.Name,
+		Nav:    "coffres",
+		User:   &user,
+		CSRF:   csrfFrom(r),
+		Sealed: s.vault.Sealed(),
+		Vault:  &vaultRow{ID: vault.ID, Name: vault.Name},
 		Secret: &secretRow{
 			Name: secret.Name, Label: secret.Label,
 			Version: secret.CurrentVersion, UpdatedAt: secret.UpdatedAt,

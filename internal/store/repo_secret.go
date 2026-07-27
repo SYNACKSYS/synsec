@@ -50,10 +50,10 @@ type Secret struct {
 	SecretLocation
 	CurrentVersion int64
 	// Label is what its owner wrote; Name is the slug that addresses it.
-	Label          string
-	Comment        string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	Label     string
+	Comment   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // VersionInfo describes one entry in a secret's history.

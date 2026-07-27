@@ -158,7 +158,7 @@ func installTrustLinux(caPath string) error {
 	}
 	if err := os.WriteFile(target, source, 0o644); err != nil {
 		if errors.Is(err, os.ErrPermission) {
-			return fmt.Errorf("installation refusée : relance avec sudo\n"+
+			return fmt.Errorf("installation refusée : relance avec sudo\n" +
 				"          sudo synsec cert trust")
 		}
 		return fmt.Errorf("écriture de %s : %w", target, err)

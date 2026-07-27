@@ -21,11 +21,11 @@ type ServiceToken struct {
 	IPAllowlist []string  // empty means any address
 	// Secrets narrows the token to a few entries by name. Empty means the whole
 	// vault, which is what a token without a stated scope has always meant.
-	Secrets   []string
-	CreatedAt time.Time
-	CreatedBy   string
-	LastUsedAt  time.Time
-	RevokedAt   time.Time
+	Secrets    []string
+	CreatedAt  time.Time
+	CreatedBy  string
+	LastUsedAt time.Time
+	RevokedAt  time.Time
 }
 
 // Live reports whether the token may still be used at the given moment.

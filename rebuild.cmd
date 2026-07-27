@@ -67,6 +67,25 @@ call :build macos-apple    darwin  arm64
 call :build windows-amd64  windows amd64
 if defined BUILD_FAILED goto :fail
 
+rem Les licences accompagnent les binaires, pas seulement les sources : la
+rem BSD trois clauses des dependances l'exige explicitement pour toute
+rem distribution sous forme binaire.
+copy /Y LICENSE "%DIST%\LICENSE" >nul
+copy /Y THIRD-PARTY-NOTICES.md "%DIST%\THIRD-PARTY-NOTICES.md" >nul
+
+rem Empreintes, pour que celui qui telecharge puisse verifier qu'il a bien
+rem recu ce qui a ete publie. Attendu de n'importe quel outil de securite.
+rem
+rem Le calcul se fait entierement avant l'ecriture : une redirection creerait
+rem le fichier des le depart et Get-FileHash echouerait en le lisant vide.
+echo.
+echo === Empreintes ===
+del /Q "%DIST%\SHA256SUMS" 2>nul
+powershell -NoProfile -Command ^
+  "$l = Get-ChildItem '%DIST%' -File | Get-FileHash -Algorithm SHA256 | ForEach-Object { $_.Hash.ToLower() + '  ' + (Split-Path $_.Path -Leaf) }; [IO.File]::WriteAllLines((Join-Path (Resolve-Path '%DIST%') 'SHA256SUMS'), $l)"
+if errorlevel 1 goto :fail
+type "%DIST%\SHA256SUMS"
+
 echo.
 echo === Termine ===
 echo   Synology Intel     : %DIST%\synsec-linux-amd64
@@ -77,6 +96,9 @@ echo   Raspberry Pi ancien: %DIST%\synsec-linux-armv7      (Raspberry Pi OS 32 b
 echo.
 echo   Sur la machine cible : uname -m
 echo     x86_64   -^> amd64      aarch64  -^> arm64      armv7l -^> armv7
+echo.
+echo   Publier : mettre VERSION a la valeur du tag, recompiler, puis
+echo             televerser le contenu de %DIST%\ dans la release GitHub.
 echo.
 endlocal
 exit /b 0

@@ -25,14 +25,14 @@ type pageData struct {
 	Notice string
 	Sealed bool
 
-	Vaults  []vaultRow
+	Vaults []vaultRow
 	// SharedVaults are those someone else opened, kept apart from the ones
 	// this person manages.
 	SharedVaults []vaultRow
-	Vault   *vaultRow
-	Secrets []secretRow
-	Secret  *secretRow
-	Value   string
+	Vault        *vaultRow
+	Secrets      []secretRow
+	Secret       *secretRow
+	Value        string
 
 	// Shared holds secrets handed to this person individually, outside any
 	// vault they belong to.

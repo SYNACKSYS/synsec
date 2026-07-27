@@ -1,5 +1,38 @@
 # Installation
 
+## Télécharger
+
+Les binaires publiés se trouvent dans les
+[releases](https://github.com/SYNACKSYS/synsec/releases). Un seul fichier à
+poser, rien à installer à côté.
+
+| Fichier | Pour |
+|---|---|
+| `synsec-windows-amd64.exe` | Windows |
+| `synsec-linux-amd64` | Linux et Synology sur processeur Intel |
+| `synsec-linux-arm64` | Raspberry Pi 3/4/5 en 64 bits, Synology ARM |
+| `synsec-linux-armv7` | Raspberry Pi en 32 bits |
+| `synsec-macos-apple` / `-intel` | macOS |
+
+En cas de doute sur l'architecture, sur la machine cible : `uname -m`. `x86_64`
+donne `amd64`, `aarch64` donne `arm64`, `armv7l` donne `armv7`.
+
+Chaque release contient un fichier `SHA256SUMS`. Vérifier ce que tu as
+téléchargé prend dix secondes et vaut la peine pour un logiciel qui va détenir
+tous tes mots de passe :
+
+```
+certutil -hashfile synsec-windows-amd64.exe SHA256
+sha256sum -c SHA256SUMS
+```
+
+Sous Linux et macOS, il faut aussi rendre le fichier exécutable :
+
+```
+chmod +x synsec-linux-amd64
+```
+
+
 Compte une dizaine de minutes. À la fin, SYNSEC démarrera tout seul avec la
 machine et sera joignable depuis ton réseau.
 

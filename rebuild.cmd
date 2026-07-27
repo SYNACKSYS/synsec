@@ -12,7 +12,7 @@ rem CGO_ENABLED=0 partout : c'est ce qui rend la compilation croisee possible
 rem sans chaine d'outils C, et ce qui donne un binaire sans dependance.
 
 set "DIST=dist"
-set "VERSION=v0.1.0"
+set "VERSION=v0.1.1"
 set "CGO_ENABLED=0"
 
 rem Ou trouver le code de cette version. La licence AGPL demande que quiconque

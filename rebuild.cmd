@@ -4,9 +4,9 @@ setlocal EnableDelayedExpansion
 rem SYNSEC - compilation et tests.
 rem
 rem Machine de developpement : on compile, on ne fait pas tourner de serveur.
-rem Aucun service n'est arrete ni relance ici, et aucun secret ne vit sur cette
-rem machine. Sur un hote qui heberge reellement SYNSEC, il faudrait arreter le
-rem service avant de remplacer synsec.exe, que le service tient ouvert.
+rem Aucun service n'est arrete ni relance, aucun secret ne vit ici, et rien
+rem n'est produit a la racine : tout ce qui est compile atterrit dans dist\,
+rem y compris la version Windows.
 rem
 rem CGO_ENABLED=0 partout : c'est ce qui rend la compilation croisee possible
 rem sans chaine d'outils C, et ce qui donne un binaire sans dependance.
@@ -35,13 +35,6 @@ if errorlevel 1 goto :fail
 echo.
 echo === Tests ===
 go test ./...
-if errorlevel 1 goto :fail
-
-echo.
-echo === Binaires locaux ===
-go build -ldflags "%STAMP%" -o synsec.exe ./cmd/synsec
-if errorlevel 1 goto :fail
-go build -ldflags "-X main.agentVersion=%VERSION%" -o synsec-agent.exe ./cmd/synsec-agent
 if errorlevel 1 goto :fail
 
 echo.

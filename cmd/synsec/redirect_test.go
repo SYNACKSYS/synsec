@@ -162,3 +162,62 @@ func TestSilentConnectionIsDropped(t *testing.T) {
 	case <-time.After(300 * time.Millisecond):
 	}
 }
+
+// A silent connection must not stop the server from accepting anyone else.
+//
+// Identifying a connection means reading its first byte, which waits up to
+// peekTimeout. Done on the accept path, one socket that sends nothing would
+// hold every other connection behind it: a denial of service costing one
+// connection and zero bytes.
+func TestSilentConnectionDoesNotBlockOthers(t *testing.T) {
+	addr := newSplitServer(t)
+
+	// Three clients that will never say a word.
+	for i := 0; i < 3; i++ {
+		dial(t, addr)
+	}
+
+	// A real client arrives behind them and must still be served well within
+	// the peek timeout.
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // self-signed test certificate
+		},
+		Timeout: peekTimeout / 2,
+	}
+	resp, err := client.Get("https://" + addr + "/")
+	if err != nil {
+		t.Fatalf("a silent connection held the accept loop: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("the application answered %d", resp.StatusCode)
+	}
+}
+
+// The same, for the redirector: a plain client must get its 308 while other
+// connections stall.
+func TestPlainRequestSurvivesSilentConnections(t *testing.T) {
+	addr := newSplitServer(t)
+	for i := 0; i < 3; i++ {
+		dial(t, addr)
+	}
+
+	conn := dial(t, addr)
+	request := "GET / HTTP/1.1\r\nHost: " + addr + "\r\nConnection: close\r\n\r\n"
+	if _, err := conn.Write([]byte(request)); err != nil {
+		t.Fatalf("writing request: %v", err)
+	}
+
+	conn.SetReadDeadline(time.Now().Add(peekTimeout / 2))
+	resp, err := http.ReadResponse(bufio.NewReader(conn), nil)
+	if err != nil {
+		t.Fatalf("the redirector was starved by silent connections: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusPermanentRedirect {
+		t.Fatalf("status is %d, want 308", resp.StatusCode)
+	}
+}

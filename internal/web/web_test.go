@@ -386,3 +386,20 @@ func TestTemplatesAllParse(t *testing.T) {
 		}
 	}
 }
+
+// The browser is told never to try plain HTTP again: SYNSEC has no such mode,
+// and the first request typed without a scheme goes out in clear.
+func TestWebSetsStrictTransportSecurity(t *testing.T) {
+	h := newHarness(t)
+
+	resp := h.get(t, "/login")
+	if got := resp.Header.Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("no Strict-Transport-Security header on the sign-in page")
+	}
+
+	h.signIn(t)
+	resp = h.get(t, "/")
+	if got := resp.Header.Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("no Strict-Transport-Security header once signed in")
+	}
+}

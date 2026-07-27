@@ -64,6 +64,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "no-referrer")
 		// Nothing here is meant to be framed or embedded.
 		h.Set("X-Frame-Options", "DENY")
+		// A device that was configured with an http:// address must not keep
+		// presenting its token in clear once it has reached the real server.
+		h.Set("Strict-Transport-Security", "max-age=31536000")
 		next.ServeHTTP(w, r)
 	})
 }

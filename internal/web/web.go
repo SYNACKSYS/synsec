@@ -253,6 +253,11 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "no-referrer")
+		// SYNSEC has no plain-HTTP mode, but a browser given "serveur:8787"
+		// presumes http and sends that first request in clear, where anyone on
+		// the network can answer in its place. This tells the browser never to
+		// try again, so only the very first visit is exposed.
+		h.Set("Strict-Transport-Security", "max-age=31536000")
 		// Everything is served from this origin; nothing is fetched elsewhere.
 		h.Set("Content-Security-Policy",
 			"default-src 'self'; img-src 'self' data:; style-src 'self'; "+

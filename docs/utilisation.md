@@ -204,9 +204,13 @@ synsec secret reseau add Maison zigbee_cle 192.168.1.0/24 -user cyril
 ```
 
 La restriction appartient au secret : elle vaut quel que soit le token
-présenté. Elle ne concerne que les appels des appareils - l'interface web et la
-ligne de commande demandent ton mot de passe, ce qui est une preuve d'identité
-là où l'adresse ne fait qu'identifier une machine.
+présenté, et elle couvre la lecture, l'écriture et la suppression. Elle ne
+concerne que les appels des appareils - l'interface web et la ligne de commande
+demandent ton mot de passe, ce qui est une preuve d'identité là où l'adresse ne
+fait qu'identifier une machine.
+
+Un identifiant qui n'existe pas encore n'est pas bloqué : une liste d'adresses
+écrite pour un secret ne gouverne pas la création d'un autre.
 
 > Dès la première adresse ajoutée, plus aucun appareil ne peut lire ce secret
 > depuis une autre. Pense à `127.0.0.1` si un service tourne sur ce serveur.

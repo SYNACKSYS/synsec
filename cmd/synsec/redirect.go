@@ -26,6 +26,15 @@ const (
 
 	// plainBacklog caps the connections waiting to be redirected.
 	plainBacklog = 32
+
+	// tlsBacklog caps the classified connections waiting for the TLS server to
+	// pick them up.
+	tlsBacklog = 64
+
+	// maxSorting caps how many connections may be identifying themselves at
+	// once. Each costs a goroutine and one byte of buffer for up to
+	// peekTimeout, so this is what a flood of silent connections can spend.
+	maxSorting = 256
 )
 
 // splitListener routes each accepted connection by its first byte: TLS
@@ -33,46 +42,92 @@ const (
 type splitListener struct {
 	net.Listener
 
+	tls       chan net.Conn
 	plain     chan net.Conn
+	sorting   chan struct{}
 	closeOnce sync.Once
 	closed    chan struct{}
+	once      sync.Once
 }
 
 func newSplitListener(inner net.Listener) *splitListener {
 	return &splitListener{
 		Listener: inner,
+		tls:      make(chan net.Conn, tlsBacklog),
 		plain:    make(chan net.Conn, plainBacklog),
+		sorting:  make(chan struct{}, maxSorting),
 		closed:   make(chan struct{}),
 	}
 }
 
-// Accept returns only TLS connections. Plain ones are handed to the
-// redirector and the loop continues, so the TLS server never sees them.
-func (l *splitListener) Accept() (net.Conn, error) {
+// sort reads the accept queue and classifies each connection off the critical
+// path.
+//
+// The peek must not happen in Accept. Reading the first byte waits up to
+// peekTimeout, and a client that connects without sending anything would hold
+// the accept loop for that whole time - one idle socket, repeated, and the
+// server stops answering everybody. Classification therefore runs in its own
+// goroutine per connection, bounded by maxSorting so that a flood costs memory
+// rather than availability.
+func (l *splitListener) sort() {
 	for {
 		conn, err := l.Listener.Accept()
 		if err != nil {
-			return nil, err
-		}
-
-		peeked, isTLS, err := peekProtocol(conn)
-		if err != nil {
-			conn.Close()
-			continue
-		}
-		if isTLS {
-			return peeked, nil
+			close(l.tls) // wakes Accept, which reports the failure
+			return
 		}
 
 		select {
-		case l.plain <- peeked:
+		case l.sorting <- struct{}{}:
 		case <-l.closed:
-			peeked.Close()
+			conn.Close()
+			return
 		default:
-			// The redirector is saturated. Dropping beats blocking the accept
-			// loop and starving the connections that matter.
-			peeked.Close()
+			// More connections are waiting to identify themselves than this
+			// server has any reason to see. Dropping the newest keeps the ones
+			// already being classified.
+			conn.Close()
+			continue
 		}
+
+		go func() {
+			defer func() { <-l.sorting }()
+
+			peeked, isTLS, err := peekProtocol(conn)
+			if err != nil {
+				conn.Close()
+				return
+			}
+
+			queue := l.plain
+			if isTLS {
+				queue = l.tls
+			}
+			select {
+			case queue <- peeked:
+			case <-l.closed:
+				peeked.Close()
+			default:
+				// Saturated. Dropping beats blocking a goroutine that holds a
+				// classification slot.
+				peeked.Close()
+			}
+		}()
+	}
+}
+
+// Accept returns only TLS connections; the plain ones go to the redirector.
+func (l *splitListener) Accept() (net.Conn, error) {
+	l.once.Do(func() { go l.sort() })
+
+	select {
+	case conn, ok := <-l.tls:
+		if !ok {
+			return nil, net.ErrClosed
+		}
+		return conn, nil
+	case <-l.closed:
+		return nil, net.ErrClosed
 	}
 }
 

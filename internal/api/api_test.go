@@ -583,3 +583,66 @@ func TestReadReportsTheVersion(t *testing.T) {
 		t.Fatalf("the version is %d, want 2", body.Version)
 	}
 }
+
+// The address restriction governs writing and deleting as well as reading.
+//
+// Governing reads alone would let the very device it was written against
+// overwrite or destroy the secret from anywhere - the opposite of what pinning
+// a secret to an address is for, and deletion is the most damaging of the
+// three.
+func TestPinnedSecretIsWriteProtectedToo(t *testing.T) {
+	h := newHarness(t)
+	h.putSecret(t, "mqtt_password", "s3cr3t")
+	h.pin(t, "mqtt_password", "203.0.113.9") // an address the test never calls from
+
+	token := h.mintToken(t, func(tok *store.ServiceToken) { tok.CanWrite = true })
+
+	body := strings.NewReader(`{"value":"remplace"}`)
+	if resp := h.do(t, http.MethodPut, "/api/v1/secrets/value?name=mqtt_password", token, body); resp.StatusCode != http.StatusForbidden {
+		t.Errorf("PUT from a disallowed address returned %d, want 403", resp.StatusCode)
+	}
+	if resp := h.do(t, http.MethodDelete, "/api/v1/secrets/value?name=mqtt_password", token, nil); resp.StatusCode != http.StatusForbidden {
+		t.Errorf("DELETE from a disallowed address returned %d, want 403", resp.StatusCode)
+	}
+
+	// And the secret is intact: neither refusal was a refusal after the fact.
+	resp := h.do(t, http.MethodGet, "/api/v1/secrets", token, nil)
+	if !strings.Contains(bodyString(t, resp), "mqtt_password") {
+		t.Fatal("the secret was deleted despite the refusal")
+	}
+}
+
+// Creating an entry is not something an address list written for another entry
+// can govern, so a name that does not exist yet is not blocked.
+func TestPinningDoesNotBlockCreatingANewName(t *testing.T) {
+	h := newHarness(t)
+	h.putSecret(t, "mqtt_password", "s3cr3t")
+	h.pin(t, "mqtt_password", "203.0.113.9")
+
+	token := h.mintToken(t, func(tok *store.ServiceToken) { tok.CanWrite = true })
+
+	body := strings.NewReader(`{"value":"nouveau"}`)
+	resp := h.do(t, http.MethodPut, "/api/v1/secrets/value?name=cle_wifi", token, body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("creating a new secret returned %d", resp.StatusCode)
+	}
+}
+
+// A browser or a device that reached the real server must be told never to try
+// plain HTTP again.
+func TestStrictTransportSecurityIsSet(t *testing.T) {
+	h := newHarness(t)
+	token := h.mintToken(t, nil)
+
+	resp := h.do(t, http.MethodGet, "/api/v1/secrets", token, nil)
+	if got := resp.Header.Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("no Strict-Transport-Security header on an API response")
+	}
+
+	// Including on the unauthenticated endpoint, which is the first thing many
+	// clients touch.
+	resp = h.do(t, http.MethodGet, "/api/v1/health", "", nil)
+	if got := resp.Header.Get("Strict-Transport-Security"); got == "" {
+		t.Fatal("no Strict-Transport-Security header on the health endpoint")
+	}
+}

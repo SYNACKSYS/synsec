@@ -82,17 +82,7 @@ func (s *Server) getSecret(w http.ResponseWriter, r *http.Request, tok store.Ser
 		return
 	}
 
-	// A secret pinned to an address is refused elsewhere, whatever token is
-	// presented: the restriction belongs to the secret, not to the credential.
-	allowed, err := s.vault.DB().SecretAllowsAddress(r.Context(), meta.ID, s.clientIP(r))
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if !allowed {
-		s.auditToken(r, tok, "access.denied", name, "adresse non autorisée pour ce secret")
-		writeError(w, http.StatusForbidden, codeForbidden,
-			"ce secret ne peut pas être lu depuis cette adresse")
+	if !s.addressAllowed(w, r, tok, meta.ID, name) {
 		return
 	}
 
@@ -123,6 +113,10 @@ func (s *Server) putSecret(w http.ResponseWriter, r *http.Request, tok store.Ser
 	}
 
 	loc := store.SecretLocation{ProjectID: tok.ProjectID, Env: tok.Env, Name: name}
+	if !s.addressAllowedFor(w, r, tok, loc, name) {
+		return
+	}
+
 	sec, err := s.vault.PutSecret(r.Context(), loc, []byte(body.Value), "", "token:"+tok.Name)
 	if err != nil {
 		s.fail(w, r, err)
@@ -142,6 +136,10 @@ func (s *Server) deleteSecret(w http.ResponseWriter, r *http.Request, tok store.
 	}
 
 	loc := store.SecretLocation{ProjectID: tok.ProjectID, Env: tok.Env, Name: name}
+	if !s.addressAllowedFor(w, r, tok, loc, name) {
+		return
+	}
+
 	if err := s.vault.DB().DeleteSecret(r.Context(), loc); err != nil {
 		s.fail(w, r, err)
 		return
@@ -149,6 +147,45 @@ func (s *Server) deleteSecret(w http.ResponseWriter, r *http.Request, tok store.
 
 	s.auditToken(r, tok, "secret.delete", name, "")
 	writeJSON(w, http.StatusOK, map[string]string{"name": name})
+}
+
+// addressAllowedFor looks the secret up and checks the caller's address.
+//
+// A name that does not exist yet has no restriction to check: creating an
+// entry is not something an address list written for an older entry can
+// govern.
+func (s *Server) addressAllowedFor(w http.ResponseWriter, r *http.Request, tok store.ServiceToken, loc store.SecretLocation, name string) bool {
+	meta, err := s.vault.DB().SecretMeta(r.Context(), loc)
+	if errors.Is(err, store.ErrNotFound) {
+		return true
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return false
+	}
+	return s.addressAllowed(w, r, tok, meta.ID, name)
+}
+
+// addressAllowed refuses a caller whose address is not on a secret's list.
+//
+// It applies to reads, writes and deletions alike. A restriction that only
+// governed reading would let the same device it was written against overwrite
+// or destroy the secret from anywhere - which is the opposite of what someone
+// pinning a secret to an address expects, and deletion is the most damaging of
+// the three.
+func (s *Server) addressAllowed(w http.ResponseWriter, r *http.Request, tok store.ServiceToken, secretID, name string) bool {
+	allowed, err := s.vault.DB().SecretAllowsAddress(r.Context(), secretID, s.clientIP(r))
+	if err != nil {
+		s.fail(w, r, err)
+		return false
+	}
+	if !allowed {
+		s.auditToken(r, tok, "access.denied", name, "adresse non autorisée pour ce secret")
+		writeError(w, http.StatusForbidden, codeForbidden,
+			"ce secret n'est pas accessible depuis cette adresse")
+		return false
+	}
+	return true
 }
 
 // scopedName reads the name parameter and checks the token may act on this

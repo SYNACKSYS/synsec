@@ -16,7 +16,7 @@ set "CGO_ENABLED=0"
 rem Ou trouver le code de cette version. La licence AGPL demande que quiconque
 rem utilise le serveur puisse l'obtenir ; l'interface l'affiche sur /source.
 rem Laisse vide tant que le code n'est publie nulle part.
-set "SOURCE_URL="
+set "SOURCE_URL=https://github.com/SYNACKSYS/synsec"
 
 set "STAMP=-X synsec/internal/web.Version=%VERSION% -X synsec/internal/web.SourceURL=%SOURCE_URL%"
 

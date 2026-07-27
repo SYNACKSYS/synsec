@@ -139,6 +139,55 @@ synsec service install
 
 Le code de récupération reste valable après une restauration. Garde-le.
 
+## Utiliser son propre certificat
+
+Par défaut SYNSEC émet le sien, et `synsec cert trust` l'installe dans le
+magasin de la machine. Pour un serveur qui porte un vrai nom de domaine, tu
+peux fournir le tien :
+
+```
+synsec serve -tls-cert /etc/letsencrypt/live/exemple.fr/fullchain.pem \
+             -tls-key  /etc/letsencrypt/live/exemple.fr/privkey.pem
+```
+
+Ou par l'environnement, ce qui convient mieux à une unité systemd :
+
+```
+SYNSEC_TLS_CERT=/etc/letsencrypt/live/exemple.fr/fullchain.pem
+SYNSEC_TLS_KEY=/etc/letsencrypt/live/exemple.fr/privkey.pem
+```
+
+Les deux vont ensemble : SYNSEC refuse de démarrer avec l'un sans l'autre.
+
+### La chaîne complète, pas seulement la feuille
+
+Le fichier de certificat doit contenir la feuille **puis les intermédiaires** -
+c'est `fullchain.pem` chez Let's Encrypt, pas `cert.pem`. Avec la feuille
+seule, la connexion réussit depuis les machines qui ont déjà l'intermédiaire en
+cache et échoue depuis les autres. La panne semble alors aléatoire, ce qui est
+la pire sorte.
+
+### Le renouvellement est pris en compte tout seul
+
+SYNSEC surveille les deux fichiers et recharge le certificat quand ils
+changent, sans redémarrage. Ton client ACME renouvelle, la connexion suivante
+présente le nouveau certificat.
+
+Deux garde-fous : un fichier à moitié écrit ou temporairement absent - ce qui
+arrive pendant un renouvellement - n'interrompt rien, l'ancien certificat reste
+en service et le journal l'explique. Et un chemin erroné est refusé au
+démarrage plutôt qu'à la première connexion, une heure plus tard.
+
+### Une autorité publique et une adresse privée
+
+Aucune autorité publique ne signera pour `192.168.1.10`. Si ton serveur ne sort
+pas sur Internet, il te faut un vrai nom de domaine et un défi **DNS-01**, le
+seul qui n'exige pas que le serveur soit joignable depuis l'extérieur.
+
+Sur un réseau strictement domestique, le certificat auto-signé et
+`synsec cert trust` restent plus simples et pas moins sûrs : tu deviens ta
+propre autorité, pour toi seul.
+
 ## Le délai d'inactivité
 
 L'interface web déconnecte un navigateur laissé sans activité pendant **30
@@ -310,4 +359,6 @@ arguments, indifféremment.
 | `SYNSEC_DATA_DIR` | dossier de données |
 | `SYNSEC_LISTEN` | adresse d'écoute |
 | `SYNSEC_SESSION_IDLE` | délai d'inactivité avant déconnexion, par défaut `30m` |
+| `SYNSEC_TLS_CERT` | certificat TLS, chaîne complète |
+| `SYNSEC_TLS_KEY` | clé privée du certificat |
 | `SYNSEC_USER` | compte utilisé par les commandes qui touchent un secret |

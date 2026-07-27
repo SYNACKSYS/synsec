@@ -22,6 +22,8 @@ const (
 	EnvDataDir     = "SYNSEC_DATA_DIR"
 	EnvListen      = "SYNSEC_LISTEN"
 	EnvSessionIdle = "SYNSEC_SESSION_IDLE"
+	EnvTLSCert     = "SYNSEC_TLS_CERT"
+	EnvTLSKey      = "SYNSEC_TLS_KEY"
 )
 
 // Config is the resolved runtime configuration.
@@ -60,6 +62,8 @@ func Default() Config {
 		DataDir:     DefaultDataDir(),
 		Listen:      envOr(EnvListen, ":"+DefaultPort),
 		SessionIdle: envDuration(EnvSessionIdle, auth.SessionIdle),
+		TLSCert:     os.Getenv(EnvTLSCert),
+		TLSKey:      os.Getenv(EnvTLSKey),
 	}
 }
 

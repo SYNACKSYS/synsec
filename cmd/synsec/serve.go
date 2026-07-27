@@ -92,8 +92,10 @@ func runServer(args []string, stop <-chan struct{}) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	fs.StringVar(&cfg.DataDir, "data", cfg.DataDir, "dossier de données")
 	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "adresse d'écoute")
-	fs.StringVar(&cfg.TLSCert, "tls-cert", "", "certificat TLS (défaut : auto-signé)")
-	fs.StringVar(&cfg.TLSKey, "tls-key", "", "clé privée du certificat")
+	// Le défaut est la valeur déjà résolue depuis l'environnement, sans quoi
+	// l'option écraserait SYNSEC_TLS_CERT par une chaîne vide.
+	fs.StringVar(&cfg.TLSCert, "tls-cert", cfg.TLSCert, "certificat TLS, chaîne complète (défaut : auto-signé)")
+	fs.StringVar(&cfg.TLSKey, "tls-key", cfg.TLSKey, "clé privée du certificat")
 	fs.BoolVar(&trustProxy, "trust-proxy", false, "croire l'en-tête X-Forwarded-For")
 	fs.DurationVar(&cfg.SessionIdle, "session-idle", cfg.SessionIdle,
 		"délai d'inactivité avant déconnexion de l'interface web")
@@ -176,14 +178,11 @@ Options :
 		ErrorLog:          log.New(os.Stderr, "http: ", log.LstdFlags),
 	}
 
-	cert, local, err := loadCertificate(cfg)
+	tlsConf, local, err := serverTLS(cfg)
 	if err != nil {
 		return err
 	}
-	srv.TLSConfig = &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		MinVersion:   tls.VersionTLS12,
-	}
+	srv.TLSConfig = tlsConf
 	announce(cfg, local)
 
 	return listenAndServe(srv, cfg, stop)
@@ -238,22 +237,32 @@ func listenAndServe(srv *http.Server, cfg config.Config, stop <-chan struct{}) e
 	return nil
 }
 
-// loadCertificate returns the certificate to serve with: the operator's own if
-// they configured one, otherwise SYNSEC's local authority.
-func loadCertificate(cfg config.Config) (tls.Certificate, *tlsconf.Local, error) {
+// serverTLS builds the TLS settings: the operator's own certificate if they
+// configured one, otherwise SYNSEC's local authority.
+//
+// A configured certificate is served through a reloader, so a renewal is
+// picked up without restarting. The self-signed one needs no such thing - it
+// only changes when SYNSEC itself regenerates it, which happens at startup.
+func serverTLS(cfg config.Config) (*tls.Config, *tlsconf.Local, error) {
 	if cfg.TLSCert != "" {
-		cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+		reloader, err := tlsconf.NewReloader(cfg.TLSCert, cfg.TLSKey)
 		if err != nil {
-			return tls.Certificate{}, nil, fmt.Errorf("lecture du certificat : %w", err)
+			return nil, nil, err
 		}
-		return cert, nil, nil
+		return &tls.Config{
+			GetCertificate: reloader.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		}, nil, nil
 	}
 
 	local, err := tlsconf.EnsureLocal(cfg.DataDir)
 	if err != nil {
-		return tls.Certificate{}, nil, err
+		return nil, nil, err
 	}
-	return local.Certificate, &local, nil
+	return &tls.Config{
+		Certificates: []tls.Certificate{local.Certificate},
+		MinVersion:   tls.VersionTLS12,
+	}, &local, nil
 }
 
 func announce(cfg config.Config, local *tlsconf.Local) {

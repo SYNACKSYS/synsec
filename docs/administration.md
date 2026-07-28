@@ -293,6 +293,39 @@ n'en a pas : sans eux, perdre l'objet ferme le compte définitivement. Retirer
 l'application d'un compte qui garde une clé conserve ces codes, pour la même
 raison.
 
+### L'imposer à tout le monde
+
+Les deux réglages ci-dessus sont le choix de chacun. Sur un serveur exposé, ce
+n'est pas suffisant : le compte qui n'a qu'un mot de passe est celui qui tombe
+le jour où ce mot de passe fuite ailleurs, et c'est rarement celui de la
+personne qui a lu cette page.
+
+```
+synsec serve -require-2fa
+```
+
+Ou `SYNSEC_REQUIRE_2FA=1` dans l'unité systemd ou le conteneur.
+
+La connexion continue de fonctionner - sans quoi personne ne pourrait
+s'enrôler - mais la session n'atteint que **Vérification en deux étapes** et
+**Clé de sécurité**. Toute autre page renvoie là, formulaires compris : une
+écriture postée depuis un onglet resté ouvert avant l'activation ne passe pas.
+La barre latérale se réduit aux deux pages qui mènent dehors.
+
+L'une des deux méthodes suffit. Retirer le dernier facteur est refusé avec sa
+raison, plutôt qu'accepté puis défait à la requête suivante.
+
+**Ce que ça ne couvre pas.** Les jetons de service. Un appareil ne peut rien
+détenir de plus que son jeton, et ce jeton est déjà 256 bits tirés au hasard :
+c'est la restriction d'adresse et la portée par secret qui l'encadrent, pas un
+second facteur. La ligne de commande non plus - elle s'exécute sur la machine,
+où quiconque peut l'atteindre a déjà la clé racine.
+
+**Avant de l'activer.** Préviens les comptes qui existent. Ils ne pourront plus
+rien faire tant qu'ils n'auront pas enrôlé quelque chose, et une clé exige un
+nom de machine (voir plus haut) - depuis une adresse IP, il ne leur restera que
+l'application.
+
 ### Borner le journal
 
 Chaque échec de connexion écrit une ligne. Sur un serveur exposé, un disque

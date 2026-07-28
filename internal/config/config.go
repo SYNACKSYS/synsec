@@ -28,6 +28,7 @@ const (
 	EnvAuditRetain    = "SYNSEC_AUDIT_RETAIN"
 	EnvTrustedProxies = "SYNSEC_TRUSTED_PROXIES"
 	EnvWebAllow       = "SYNSEC_WEB_ALLOW"
+	EnvRequire2FA     = "SYNSEC_REQUIRE_2FA"
 )
 
 // Config is the resolved runtime configuration.
@@ -74,6 +75,18 @@ type Config struct {
 	// means anywhere, which is right on a home network and is the single
 	// cheapest mitigation for a server anyone can reach.
 	WebAllow []string
+
+	// RequireSecondFactor makes a second factor compulsory for every account.
+	//
+	// Off by default, because a household server where one person forgets
+	// their phone and locks themselves out is a worse outcome than the risk it
+	// removes. On a server anyone can reach it is the setting that matters
+	// most: a password is the one credential that leaks somewhere else.
+	//
+	// It applies to the browser interface. Service tokens are unaffected -
+	// there is no second factor a device could hold, and the token secret is
+	// already 256 random bits.
+	RequireSecondFactor bool
 }
 
 // Default returns the configuration before any flag is applied.
@@ -88,6 +101,8 @@ func Default() Config {
 
 		TrustedProxies: envList(EnvTrustedProxies),
 		WebAllow:       envList(EnvWebAllow),
+
+		RequireSecondFactor: envBool(EnvRequire2FA),
 	}
 }
 
@@ -194,6 +209,17 @@ func envList(key string) []string {
 		}
 	}
 	return out
+}
+
+// envBool reads a switch. Anything a person would plausibly write for "yes"
+// counts; everything else, including an unset variable, is off.
+func envBool(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "oui", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func envOr(key, fallback string) string {

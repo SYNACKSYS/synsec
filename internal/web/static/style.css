@@ -30,6 +30,9 @@
   --ok: #067647;
   --ok-soft: #ecfdf3;
   --ok-border: #abefc6;
+  --warn: #b54708;
+  --warn-soft: #fffaeb;
+  --warn-border: #fedf89;
 
   /* Rythme */
   --radius: 10px;
@@ -66,6 +69,9 @@
     --ok: #6ee7a8;
     --ok-soft: #10241a;
     --ok-border: #1f4433;
+    --warn: #f0b429;
+    --warn-soft: #2a2113;
+    --warn-border: #4a3a1c;
 
     --shadow: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-lg: 0 6px 20px rgb(0 0 0 / 45%);
@@ -592,6 +598,14 @@ input[readonly] {
   background: var(--ok-soft);
   border-color: var(--ok-border);
   color: var(--ok);
+}
+
+/* A requirement, not a failure: the server insists on something the person has
+   not done yet, and the page has to say so without looking like an error. */
+.alert-warn {
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
+  color: var(--warn);
 }
 
 .empty {

@@ -97,6 +97,13 @@ type pageData struct {
 	HasKeys      bool
 	HasCode      bool
 
+	// RequireFactor says the server insists on a second factor, and MustEnrol
+	// that this account does not have one yet. Together they turn the settings
+	// pages from an offer into an instruction, and cut the sidebar down to the
+	// two pages that lead out of it.
+	RequireFactor bool
+	MustEnrol     bool
+
 	// SourceURL and Version answer the licence notice: which build this is,
 	// and where its source can be fetched.
 	SourceURL string

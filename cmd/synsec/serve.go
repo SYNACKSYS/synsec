@@ -105,6 +105,8 @@ func runServer(args []string, stop <-chan struct{}) error {
 		"délai d'inactivité avant déconnexion de l'interface web")
 	fs.DurationVar(&cfg.AuditRetain, "audit-retain", cfg.AuditRetain,
 		"durée de conservation du journal d'audit (0 = sans limite)")
+	fs.BoolVar(&cfg.RequireSecondFactor, "require-2fa", cfg.RequireSecondFactor,
+		"impose un second facteur - code ou clé de sécurité - à tous les comptes")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, strings.TrimSpace(`
 synsec serve - démarre le serveur
@@ -189,6 +191,7 @@ Options :
 		web.WithSessionIdle(cfg.SessionIdle),
 		web.TrustProxies(clients),
 		web.RestrictTo(cfg.WebAllow),
+		web.RequireSecondFactor(cfg.RequireSecondFactor),
 	)
 	if err != nil {
 		return err

@@ -423,3 +423,129 @@ func TestTheChallengeIsRefusedWithoutThePassword(t *testing.T) {
 		t.Fatal("a challenge was handed out before the password")
 	}
 }
+
+// The server-wide requirement.
+
+// Signing in still works - there would be no way to enrol otherwise - but the
+// session reaches the enrolment pages and nothing else.
+func TestARequiredFactorLocksTheInterfaceUntilEnrolled(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(true))
+	h.signIn(t)
+
+	for _, path := range []string{"/", "/coffres/nouveau", "/comptes", "/journal", "/parametres"} {
+		resp := h.get(t, path)
+		if resp.StatusCode != http.StatusSeeOther {
+			t.Fatalf("%s returned %d, want a diversion to the enrolment page", path, resp.StatusCode)
+		}
+		if loc := resp.Header.Get("Location"); !strings.HasPrefix(loc, "/parametres/verification") {
+			t.Fatalf("%s sent the browser to %q", path, loc)
+		}
+	}
+
+	// The two ways out must stay open, and say why they are the only ones.
+	page := body(t, h.get(t, "/parametres/verification?enrolement=1"))
+	if !strings.Contains(page, "exige un second facteur") {
+		t.Fatal("the enrolment page does not say the server requires a factor")
+	}
+	if resp := h.get(t, "/parametres/cles"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("the security key page returned %d during enrolment", resp.StatusCode)
+	}
+}
+
+// Writing must be diverted like reading: a form posted from a tab left open
+// before the policy came on must not go through.
+func TestARequiredFactorDivertsWritesToo(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(true))
+	h.signIn(t)
+	ctx := context.Background()
+
+	resp := h.post(t, "/coffres", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"Maison"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("creating a vault returned %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); !strings.HasPrefix(loc, "/parametres/verification") {
+		t.Fatalf("the write was not diverted: %q", loc)
+	}
+
+	vaults, err := h.manager.DB().ListProjects(ctx)
+	if err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if len(vaults) != 0 {
+		t.Fatal("the vault was created despite the missing factor")
+	}
+}
+
+// Enrolling - by either route - lifts the diversion.
+func TestEnrollingLiftsTheRequirement(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(true))
+	h.signIn(t)
+
+	h.registerKey(t, newFakeKey(t, "cle"), "clé")
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("the home page still returned %d after enrolling a key", resp.StatusCode)
+	}
+}
+
+func TestEnrollingAnApplicationAlsoLiftsIt(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(true))
+	h.signIn(t)
+
+	h.enableTwoFactor(t)
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("the home page still returned %d after enrolling an application", resp.StatusCode)
+	}
+}
+
+// Turning off the last factor would only bounce the account back into
+// enrolment, so it is refused with a reason instead.
+func TestTheLastFactorCannotBeRemovedUnderThePolicy(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(true))
+	h.signIn(t)
+	h.enableTwoFactor(t)
+	ctx := context.Background()
+
+	resp := h.post(t, "/parametres/verification/desactiver", url.Values{
+		"csrf": {h.csrf(t)}, "password": {testPassword},
+	})
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+		t.Fatalf("the last factor was removed: %q", loc)
+	}
+	if secret, _ := h.manager.DB().TOTPSecret(ctx, h.userID(t, "cyril")); secret == "" {
+		t.Fatal("the application was disabled anyway")
+	}
+
+	// With a key alongside it, the application may go.
+	h.registerKey(t, newFakeKey(t, "cle"), "clé")
+	h.post(t, "/parametres/verification/desactiver", url.Values{
+		"csrf": {h.csrf(t)}, "password": {testPassword},
+	})
+	if secret, _ := h.manager.DB().TOTPSecret(ctx, h.userID(t, "cyril")); secret != "" {
+		t.Fatal("the application survived even with a key in place")
+	}
+
+	// And now the key is the last factor, so it is the one that is held.
+	keys, _ := h.manager.DB().SecurityKeys(ctx, h.userID(t, "cyril"))
+	resp = h.post(t, "/parametres/cles/retirer", url.Values{
+		"csrf": {h.csrf(t)}, "id": {keys[0].ID}, "password": {testPassword},
+	})
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+		t.Fatalf("the last key was removed: %q", loc)
+	}
+	if n, _ := h.manager.DB().CountSecurityKeys(ctx, h.userID(t, "cyril")); n != 1 {
+		t.Fatal("the account was left with no factor at all")
+	}
+}
+
+// Off by default: a household where one forgotten phone locks somebody out is
+// a worse outcome than the risk the setting removes.
+func TestWithoutThePolicyAPasswordStillOpensTheInterface(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
+		t.Fatalf("the home page returned %d without any policy", resp.StatusCode)
+	}
+}

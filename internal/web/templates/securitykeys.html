@@ -10,6 +10,14 @@
   </div>
 </div>
 
+{{if .RequireFactor}}
+<p class="alert alert-warn">
+  <strong>Ce serveur exige un second facteur.</strong> Une clé de sécurité ou
+  une <a href="/parametres/verification">application d'authentification</a> -
+  l'une des deux suffit.
+</p>
+{{end}}
+
 <p class="alert alert-danger" data-webauthn-error hidden></p>
 
 {{if .SecurityKeys}}
@@ -75,7 +83,7 @@
   </div>
 </div>
 
-{{if .SecurityKeys}}
+{{if and .SecurityKeys (or (not .RequireFactor) .HasCode (gt (len .SecurityKeys) 1))}}
 <div class="page-head section">
   <div><h1>Retirer une clé</h1></div>
 </div>

@@ -223,6 +223,14 @@ func (s *Server) showSecurityKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Whether an application is enrolled decides what the page may offer: with
+	// no other factor, removing the last key is refused rather than shown.
+	hasCode, _, err := s.secondFactors(r.Context(), user.ID)
+	if err != nil {
+		s.fail(w, r, user, err)
+		return
+	}
+
 	rows := make([]securityKeyRow, 0, len(keys))
 	for _, key := range keys {
 		rows = append(rows, securityKeyRow{
@@ -242,6 +250,7 @@ func (s *Server) showSecurityKeys(w http.ResponseWriter, r *http.Request) {
 		Notice:       r.URL.Query().Get("info"),
 		Error:        r.URL.Query().Get("erreur"),
 		SecurityKeys: rows,
+		HasCode:      hasCode,
 	})
 }
 
@@ -447,6 +456,21 @@ func (s *Server) removeSecurityKey(w http.ResponseWriter, r *http.Request) {
 	for _, key := range keys {
 		if key.ID == id {
 			name = key.Name
+		}
+	}
+
+	// Removing the last factor on a server that insists on one would only
+	// bounce this account into the enrolment page.
+	if s.requireFactor && len(keys) == 1 {
+		secret, err := s.vault.DB().TOTPSecret(r.Context(), user.ID)
+		if err != nil {
+			s.fail(w, r, user, err)
+			return
+		}
+		if secret == "" {
+			s.redirectWithError(w, r, back,
+				"Ce serveur exige un second facteur. Enregistre une autre clé, ou active la vérification par code, avant de retirer celle-ci.")
+			return
 		}
 	}
 

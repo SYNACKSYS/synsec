@@ -30,7 +30,37 @@ const (
 	ctxSessionToken
 	ctxScale
 	ctxCanReadAudit
+	ctxMustEnrol
 )
+
+// enrolmentPaths are the only pages an account that owes a second factor may
+// reach.
+//
+// A list of what is allowed rather than of what is not: a route added later
+// and forgotten here is unreachable during enrolment, which is the failure
+// worth having.
+var enrolmentPaths = map[string]bool{
+	"/parametres/verification": true,
+	"/parametres/cles":         true,
+	"/parametres/cles/defi":    true,
+	"/parametres/secours":      true,
+	"/logout":                  true,
+}
+
+// mustEnrol reports whether this account owes a second factor the server
+// insists on.
+func (s *Server) mustEnrol(r *http.Request, user store.User) bool {
+	if !s.requireFactor {
+		return false
+	}
+	has, err := s.vault.DB().HasSecondFactor(r.Context(), user.ID)
+	if err != nil {
+		// A database that cannot answer must not become a way past the policy.
+		logError(r, err)
+		return true
+	}
+	return !has
+}
 
 // requireLogin refuses anything without a live session, and checks the CSRF
 // token on anything that is not a plain read.
@@ -88,6 +118,16 @@ func (s *Server) requireLogin(h http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx = context.WithValue(ctx, ctxCanReadAudit, canAudit)
 
+		// The policy is applied here rather than in each handler, so a page
+		// added later is covered the day it is written.
+		if s.mustEnrol(r, user) {
+			ctx = context.WithValue(ctx, ctxMustEnrol, true)
+			if !enrolmentPaths[r.URL.Path] {
+				http.Redirect(w, r, "/parametres/verification?enrolement=1", http.StatusSeeOther)
+				return
+			}
+		}
+
 		h(w, r.WithContext(ctx))
 	}
 }
@@ -116,6 +156,13 @@ func (s *Server) currentSession(r *http.Request) (token string, user store.User,
 func userFrom(r *http.Request) store.User {
 	u, _ := r.Context().Value(ctxUser).(store.User)
 	return u
+}
+
+// mustEnrolFrom reports whether this request belongs to an account that still
+// owes the second factor the server insists on.
+func mustEnrolFrom(r *http.Request) bool {
+	yes, _ := r.Context().Value(ctxMustEnrol).(bool)
+	return yes
 }
 
 func csrfFrom(r *http.Request) string {

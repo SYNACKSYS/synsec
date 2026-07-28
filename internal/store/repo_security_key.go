@@ -110,6 +110,22 @@ func (db *DB) DeleteSecurityKey(ctx context.Context, userID, id string) error {
 	return nil
 }
 
+// HasSecondFactor reports whether an account carries any second factor at all.
+//
+// One query rather than two, because the answer is needed on every page when
+// the server makes a second factor compulsory.
+func (db *DB) HasSecondFactor(ctx context.Context, userID string) (bool, error) {
+	var yes int
+	err := db.QueryRowContext(ctx,
+		`SELECT COALESCE((SELECT totp_secret FROM users WHERE id = ?), '') <> ''
+		     OR EXISTS (SELECT 1 FROM security_keys WHERE user_id = ?)`,
+		userID, userID).Scan(&yes)
+	if err != nil {
+		return false, fmt.Errorf("store: reading the second factor of %q: %w", userID, err)
+	}
+	return yes == 1, nil
+}
+
 // CountSecurityKeys says how many an account carries, which is what decides
 // whether a password alone is still enough to sign in.
 func (db *DB) CountSecurityKeys(ctx context.Context, userID string) (int, error) {

@@ -255,6 +255,10 @@ func (s *Server) showTwoFactorSettings(w http.ResponseWriter, r *http.Request) {
 		Notice: r.URL.Query().Get("info"),
 		Error:  r.URL.Query().Get("erreur"),
 	}
+	if r.URL.Query().Get("enrolement") != "" {
+		data.Notice = "Ce serveur exige un second facteur. Enregistre une application " +
+			"ou une clé de sécurité pour accéder à tes coffres."
+	}
 
 	if secret != "" {
 		data.TOTPEnabled = true
@@ -370,6 +374,15 @@ func (s *Server) disableTwoFactor(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, user, err)
 		return
 	}
+	// The server may insist on a second factor. Turning off the last one would
+	// only bounce this account into the enrolment page, so it is refused here
+	// with a reason rather than allowed and undone a moment later.
+	if s.requireFactor && keys == 0 {
+		s.redirectWithError(w, r, back,
+			"Ce serveur exige un second facteur. Enregistre une clé de sécurité avant de retirer l'application.")
+		return
+	}
+
 	if keys > 0 {
 		err = s.vault.DB().ClearTOTPSecret(r.Context(), user.ID)
 	} else {

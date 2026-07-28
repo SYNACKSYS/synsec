@@ -11,6 +11,13 @@
   </div>
 </div>
 
+{{if .RequireFactor}}
+<p class="alert alert-warn">
+  <strong>Ce serveur exige un second facteur.</strong> Une application ou une
+  <a href="/parametres/cles">clé de sécurité</a> - l'une des deux suffit.
+</p>
+{{end}}
+
 {{if .TOTPEnabled}}
 <div class="card card-narrow">
   <div class="card-body">

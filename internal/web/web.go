@@ -75,6 +75,10 @@ type Server struct {
 	clients *clientip.Resolver
 	allow   []string
 
+	// requireFactor makes a second factor compulsory for every account. An
+	// account that has none can reach the enrolment pages and nothing else.
+	requireFactor bool
+
 	// pendingKey signs a sign-in that has passed the password and still owes a
 	// code. Made at start-up and never stored: a restart cancels the sign-ins
 	// in progress, which costs one password re-entry and leaves no key on disk.
@@ -102,6 +106,17 @@ func TrustProxies(r *clientip.Resolver) Option {
 // into a packet that never arrives.
 func RestrictTo(entries []string) Option {
 	return func(s *Server) { s.allow = entries }
+}
+
+// RequireSecondFactor makes a second factor compulsory for every account.
+//
+// The operator's decision, not each person's: an account that carries only a
+// password is the one that falls to a credential leaked somewhere else, and on
+// a server anyone can reach that is the whole attack. Signing in still works -
+// there would be no way to enrol otherwise - but the session reaches the
+// enrolment pages and nothing else until a factor exists.
+func RequireSecondFactor(on bool) Option {
+	return func(s *Server) { s.requireFactor = on }
 }
 
 // WithSessionIdle sets how long a browser may sit untouched before being
@@ -293,6 +308,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 			d.Scale = scale
 		}
 		d.CanReadAudit = canReadAuditFrom(r)
+		d.RequireFactor = s.requireFactor
+		d.MustEnrol = mustEnrolFrom(r)
 		data = d
 	}
 

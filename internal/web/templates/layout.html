@@ -20,6 +20,14 @@
     <a class="brand" href="/">SYNSEC</a>
 
     <nav class="nav">
+      {{if .MustEnrol}}
+      {{/* Nothing else is reachable until a second factor exists, so nothing
+           else is offered: a sidebar full of links that all lead back here
+           reads as a broken interface rather than as a requirement. */}}
+      <span class="nav-label">À faire</span>
+      <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Application d'authentification</a>
+      <a href="/parametres/cles" {{if eq .Nav "cles"}}aria-current="page"{{end}}>Clé de sécurité</a>
+      {{else}}
       <span class="nav-label">Coffres</span>
       <a href="/" {{if eq .Nav "coffres"}}aria-current="page"{{end}}>Mes coffres</a>
       <a class="nav-action" href="/coffres/nouveau">+ Nouveau coffre</a>
@@ -37,6 +45,7 @@
       {{end}}
       {{if .CanReadAudit}}
       <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>
+      {{end}}
       {{end}}
       {{end}}
     </nav>

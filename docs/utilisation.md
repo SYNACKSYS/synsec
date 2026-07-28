@@ -49,6 +49,40 @@ En ligne de commande :
 synsec coffre supprimer Maison -confirmer Maison
 ```
 
+### Reprendre ce que tu as déjà
+
+Personne ne recopie trente secrets à la main. Si tes mots de passe sont
+aujourd'hui dans un `secrets.yaml` de Home Assistant ou dans un `.env` :
+
+```
+synsec import Maison secrets.yaml -essai
+synsec import Maison secrets.yaml
+```
+
+Le premier appel montre ce qui serait créé, sans rien écrire. Chaque clé
+devient un secret : la clé telle quelle sert de nom lisible, sa version en
+identifiant technique sert aux appareils. `mqtt_password` reste
+`mqtt_password`, `MQTT Password` devient `mqtt_password`.
+
+Ce que l'import refuse plutôt que de deviner :
+
+- un fichier **imbriqué**, avec des niveaux — ce n'est pas la forme d'un
+  `secrets.yaml`, et inventer des noms pour ses branches créerait des secrets
+  que tu n'as pas demandés ;
+- une **clé en double**, qui ferait perdre l'une des deux valeurs sans le dire ;
+- **deux clés qui donnent le même identifiant**, par exemple `mqtt-password` et
+  `mqtt_password`.
+
+Un identifiant déjà présent dans le coffre est ignoré. Relancer un import ne
+doit pas écrire en silence une seconde version de tout. Pour écraser
+délibérément, ajoute `-remplacer`.
+
+Les valeurs ne sont jamais affichées, ni dans l'aperçu ni après.
+
+> Le fichier d'origine n'est ni modifié ni effacé. **C'est à toi de le
+> supprimer** une fois l'import vérifié : tant qu'il est là, il contient
+> toujours tout, en clair.
+
 ### Ajouter un secret
 
 Ouvre le coffre, puis **Ajouter un secret**.

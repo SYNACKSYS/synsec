@@ -13,6 +13,8 @@ MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
   coffre a sa propre clé de chiffrement.
 - **Un secret est une entrée** avec un nom lisible et un identifiant technique.
   Tu écris « Mot de passe MQTT », tes appareils demandent `mot_de_passe_mqtt`.
+- **Reprise de l'existant** en une commande : `synsec import Maison
+  secrets.yaml` lit un fichier Home Assistant ou un `.env` et crée les entrées.
 - **Une interface web et une ligne de commande** qui se valent : les mêmes
   coffres, les mêmes secrets, les mêmes droits. Une **API REST** à jetons pour
   les appareils.

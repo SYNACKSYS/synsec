@@ -39,6 +39,7 @@ var commands = map[string]func(args []string) error{
 	"coffre":      runVault,
 	"vault":       runVault,
 	"secret":      runSecret,
+	"import":      runImportOrHelp,
 	"token":       runToken,
 	"utilisateur": runUser,
 	"user":        runUser,
@@ -99,6 +100,7 @@ Commandes :
   serve    Démarre le serveur
   coffre   Crée et liste les coffres
   secret   Enregistre, lit et supprime des secrets
+  import   Reprend un secrets.yaml ou un .env existant
   token    Connecte un appareil à un coffre
 
   utilisateur  Gère les comptes de l'interface web

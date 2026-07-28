@@ -1,6 +1,7 @@
 package web
 
 import (
+	"io/fs"
 	"net/http"
 	"net/url"
 	"strings"
@@ -151,5 +152,49 @@ func TestTheAppearanceFormCarriesItsDefaults(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("the appearance form carries no %s", want)
 		}
+	}
+}
+
+// A palette offered on the page and absent from the stylesheet would be a
+// choice that changes nothing - and nothing about saving it would fail.
+func TestEveryOfferedPaletteExistsInTheStylesheet(t *testing.T) {
+	assets, err := staticFS()
+	if err != nil {
+		t.Fatalf("staticFS: %v", err)
+	}
+	sheet, err := fs.ReadFile(assets, "style.css")
+	if err != nil {
+		t.Fatalf("reading the stylesheet: %v", err)
+	}
+
+	for _, theme := range offeredThemes {
+		if theme.Value == defaultTheme {
+			// The default is the plain stylesheet; it has no class of its own.
+			continue
+		}
+		if !strings.Contains(string(sheet), ".theme-"+theme.Value) {
+			t.Errorf("the palette %q is offered but the stylesheet defines nothing for it", theme.Value)
+		}
+	}
+}
+
+// Veilleuse is the one palette that ignores the system setting, so it must not
+// carry a light-scheme block that would undo the point of it.
+func TestVeilleuseStaysDark(t *testing.T) {
+	assets, _ := staticFS()
+	sheet, err := fs.ReadFile(assets, "style.css")
+	if err != nil {
+		t.Fatalf("reading the stylesheet: %v", err)
+	}
+
+	block := string(sheet)
+	start := strings.Index(block, ".theme-veilleuse")
+	if start < 0 {
+		t.Fatal("no Veilleuse block")
+	}
+	// Its declarations must sit outside any colour-scheme query, which is what
+	// makes the palette the same at noon and at three in the morning.
+	if strings.Count(block[start:], "prefers-color-scheme") != 0 {
+		t.Error("Veilleuse depends on the system colour scheme")
 	}
 }

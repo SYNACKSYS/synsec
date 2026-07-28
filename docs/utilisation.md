@@ -53,10 +53,19 @@ donc valables sur tous tes navigateurs :
 
 - la **taille d'affichage**, de 80 à 125 %, l'équivalent du zoom du navigateur
   mais que tu ne réregles pas sur chaque appareil ;
-- la **palette** : *Ardoise*, gris et indigo, ou *Laiton*, zinc et laiton aux
-  angles droits.
+- la **palette**, parmi quatre :
 
-Clair ou sombre suit ton système dans les deux cas, et ne se règle pas ici.
+| Palette | Ce que c'est |
+|---|---|
+| Ardoise | Gris et indigo. Le défaut. |
+| Laiton | Zinc et laiton, angles droits. |
+| Cuivre | Vert-de-gris et patine. |
+| Veilleuse | Fond presque noir, teintes chaudes et éteintes. |
+
+Clair ou sombre suit ton système, **sauf Veilleuse** qui reste sombre en
+permanence. C'est délibéré : elle est faite pour la tablette qui reste allumée
+dans un couloir, et un thème de veilleuse qui redevient blanc à midi ne sert à
+rien.
 
 ### Supprimer un coffre
 

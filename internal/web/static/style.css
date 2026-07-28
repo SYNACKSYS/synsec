@@ -1121,3 +1121,111 @@ h2.stacked { margin-top: 1.5rem; }
    frame meets the paper, and on whichever entry is current. */
 .theme-laiton .sidebar { border-right: 2px solid var(--accent); }
 .theme-laiton .nav a[aria-current] { box-shadow: inset 2px 0 0 var(--accent); }
+
+/* ---------------------------------------------------------------------------
+   Cuivre - vert-de-gris et patine.
+
+   Le troisième métal de la même famille que Laiton. La couleur porte tout : ni
+   les arrondis ni les espacements ne bougent, parce qu'une différence
+   gratuite est une différence de plus à maintenir.
+--------------------------------------------------------------------------- */
+.theme-cuivre {
+  --bg: #eef1ee;
+  --sidebar: #101a16;
+  --surface: #fbfdfb;
+  --surface-2: #f1f5f2;
+  --border: #d3ddd6;
+  --border-strong: #b4c3b9;
+
+  --text: #14211c;
+  --text-muted: #566159;
+  --text-inverse: #eaf1ed;
+  --text-inverse-muted: #8fa197;
+
+  --accent: #1f6b5c;
+  --accent-hover: #175248;
+  --accent-soft: #e6f1ed;
+  --accent-text: #ffffff;
+
+  --danger: #a03a22;
+  --danger-soft: #fbeeea;
+  --danger-border: #eecabd;
+  --ok: #2b7a3f;
+  --ok-soft: #ecf6ee;
+  --ok-border: #bcdfc4;
+  --warn: #8a5a12;
+  --warn-soft: #f8f1e4;
+  --warn-border: #e3cfa6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-cuivre {
+    --bg: #0e1512;
+    --sidebar: #080d0b;
+    --surface: #141d19;
+    --surface-2: #1a241f;
+    --border: #24312b;
+    --border-strong: #33443b;
+
+    --text: #dfe8e3;
+    --text-muted: #8b9a92;
+    --text-inverse: #dfe8e3;
+    --text-inverse-muted: #7d8d84;
+
+    --accent: #5cbfa6;
+    --accent-hover: #7ad2bb;
+    --accent-soft: #12241f;
+    --accent-text: #08120f;
+
+    --danger: #e0906f;
+    --danger-soft: #2a1a14;
+    --danger-border: #4a2e21;
+    --ok: #7fcf8f;
+    --ok-soft: #12251a;
+    --ok-border: #234630;
+    --warn: #d3a95a;
+    --warn-soft: #2a2313;
+    --warn-border: #4a3c1c;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Veilleuse - pour l'écran qui reste allumé dans un couloir.
+
+   Le seul thème qui ne suit pas le réglage clair/sombre du système, et c'est
+   le but : un thème de veilleuse qui redevient blanc à midi ne sert à rien.
+   Fond presque noir mais chaud plutôt que bleu, texte cassé plutôt que blanc
+   pur, accent ambre éteint. Ce qu'on cherche est d'émettre peu, pas de faire
+   contraster fort.
+--------------------------------------------------------------------------- */
+.theme-veilleuse {
+  --bg: #0d0b09;
+  --sidebar: #070605;
+  --surface: #16130f;
+  --surface-2: #1c1813;
+  --border: #272119;
+  --border-strong: #372f24;
+
+  --text: #d8cfc2;
+  --text-muted: #8e8474;
+  --text-inverse: #d8cfc2;
+  --text-inverse-muted: #7d7365;
+
+  --accent: #b8813f;
+  --accent-hover: #d09a55;
+  --accent-soft: #241c12;
+  --accent-text: #14100b;
+
+  --danger: #cf8a70;
+  --danger-soft: #241511;
+  --danger-border: #41271e;
+  --ok: #8faf86;
+  --ok-soft: #141d12;
+  --ok-border: #2a3a26;
+  --warn: #c9a24f;
+  --warn-soft: #221b0f;
+  --warn-border: #3d3220;
+
+  --shadow: none;
+  --shadow-lg: none;
+}

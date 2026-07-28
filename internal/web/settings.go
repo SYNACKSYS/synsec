@@ -25,9 +25,13 @@ const defaultTheme = "ardoise"
 // the sizes: every one here has been looked at.
 var offeredThemes = []themeRow{
 	{Value: "ardoise", Label: "Ardoise (par défaut)",
-		Note: "Gris et indigo, clair ou sombre selon ton système."},
+		Note: "Gris et indigo. Clair ou sombre selon ton système."},
 	{Value: "laiton", Label: "Laiton",
-		Note: "Zinc et laiton, angles droits. Le vestiaire à clés plutôt que le tableau de bord."},
+		Note: "Zinc et laiton, angles droits. Le vestiaire à clés plutôt que le tableau de bord. Clair ou sombre selon ton système."},
+	{Value: "cuivre", Label: "Cuivre",
+		Note: "Vert-de-gris et patine. Clair ou sombre selon ton système."},
+	{Value: "veilleuse", Label: "Veilleuse",
+		Note: "Pour une tablette murale : fond presque noir, teintes chaudes et éteintes, rien qui éblouisse la nuit. Reste sombre même en plein jour."},
 }
 
 // defaultScale is the browser's own idea of a comfortable size.

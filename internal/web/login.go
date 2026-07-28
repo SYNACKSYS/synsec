@@ -103,6 +103,9 @@ type pageData struct {
 	// two pages that lead out of it.
 	RequireFactor bool
 	MustEnrol     bool
+	// PolicyPinned says the command line settled the question, so the page
+	// shows the state instead of offering it.
+	PolicyPinned bool
 
 	// SourceURL and Version answer the licence notice: which build this is,
 	// and where its source can be fetched.

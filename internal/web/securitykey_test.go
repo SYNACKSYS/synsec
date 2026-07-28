@@ -426,10 +426,14 @@ func TestTheChallengeIsRefusedWithoutThePassword(t *testing.T) {
 
 // The server-wide requirement.
 
+// pin says the command line settled the policy, which is the shape the option
+// takes: a nil pointer leaves the decision to the interface.
+func pin(on bool) *bool { return &on }
+
 // Signing in still works - there would be no way to enrol otherwise - but the
 // session reaches the enrolment pages and nothing else.
 func TestARequiredFactorLocksTheInterfaceUntilEnrolled(t *testing.T) {
-	h := newHarness(t, RequireSecondFactor(true))
+	h := newHarness(t, RequireSecondFactor(pin(true)))
 	h.signIn(t)
 
 	for _, path := range []string{"/", "/coffres/nouveau", "/comptes", "/journal", "/parametres"} {
@@ -455,7 +459,7 @@ func TestARequiredFactorLocksTheInterfaceUntilEnrolled(t *testing.T) {
 // Writing must be diverted like reading: a form posted from a tab left open
 // before the policy came on must not go through.
 func TestARequiredFactorDivertsWritesToo(t *testing.T) {
-	h := newHarness(t, RequireSecondFactor(true))
+	h := newHarness(t, RequireSecondFactor(pin(true)))
 	h.signIn(t)
 	ctx := context.Background()
 
@@ -480,7 +484,7 @@ func TestARequiredFactorDivertsWritesToo(t *testing.T) {
 
 // Enrolling - by either route - lifts the diversion.
 func TestEnrollingLiftsTheRequirement(t *testing.T) {
-	h := newHarness(t, RequireSecondFactor(true))
+	h := newHarness(t, RequireSecondFactor(pin(true)))
 	h.signIn(t)
 
 	h.registerKey(t, newFakeKey(t, "cle"), "clé")
@@ -490,7 +494,7 @@ func TestEnrollingLiftsTheRequirement(t *testing.T) {
 }
 
 func TestEnrollingAnApplicationAlsoLiftsIt(t *testing.T) {
-	h := newHarness(t, RequireSecondFactor(true))
+	h := newHarness(t, RequireSecondFactor(pin(true)))
 	h.signIn(t)
 
 	h.enableTwoFactor(t)
@@ -502,7 +506,7 @@ func TestEnrollingAnApplicationAlsoLiftsIt(t *testing.T) {
 // Turning off the last factor would only bounce the account back into
 // enrolment, so it is refused with a reason instead.
 func TestTheLastFactorCannotBeRemovedUnderThePolicy(t *testing.T) {
-	h := newHarness(t, RequireSecondFactor(true))
+	h := newHarness(t, RequireSecondFactor(pin(true)))
 	h.signIn(t)
 	h.enableTwoFactor(t)
 	ctx := context.Background()
@@ -547,5 +551,108 @@ func TestWithoutThePolicyAPasswordStillOpensTheInterface(t *testing.T) {
 
 	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
 		t.Fatalf("the home page returned %d without any policy", resp.StatusCode)
+	}
+}
+
+// The same requirement, set from the interface rather than the command line.
+
+// makeRoot signs in and returns a harness whose account already carries a
+// factor, which is what the page insists on before it will lock everyone in.
+func (h *harness) enrolledRoot(t *testing.T) {
+	t.Helper()
+	h.signIn(t)
+	h.registerKey(t, newFakeKey(t, "cle-du-root"), "clé du compte principal")
+}
+
+func TestThePolicyCanBeTurnedOnFromTheInterface(t *testing.T) {
+	h := newHarness(t)
+	h.enrolledRoot(t)
+
+	resp := h.post(t, "/parametres/serveur", url.Values{
+		"csrf": {h.csrf(t)}, "require_2fa": {"1"},
+	})
+	if loc := resp.Header.Get("Location"); strings.Contains(loc, "erreur=") {
+		t.Fatalf("turning the policy on was refused: %q", loc)
+	}
+
+	// Someone else, with no factor, is now confined to the enrolment pages.
+	h.addUser(t, "alice")
+	h.signInAs(t, "alice")
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("the policy did not take effect for another account (%d)", resp.StatusCode)
+	}
+}
+
+// It survives a restart, or it is a setting that quietly forgets itself.
+func TestThePolicyIsRemembered(t *testing.T) {
+	h := newHarness(t)
+	h.enrolledRoot(t)
+	h.post(t, "/parametres/serveur", url.Values{
+		"csrf": {h.csrf(t)}, "require_2fa": {"1"},
+	})
+
+	// A second server over the same database, the way a restart would be.
+	again, err := New(h.manager, InsecureCookies())
+	if err != nil {
+		t.Fatalf("web.New: %v", err)
+	}
+	if !again.requiresFactor() {
+		t.Fatal("a restarted server forgot the policy")
+	}
+}
+
+// Turning it on from an account with no factor would lock that account out of
+// everything, including the page it just used.
+func TestThePolicyCannotBeSetFromAnAccountWithoutAFactor(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	resp := h.post(t, "/parametres/serveur", url.Values{
+		"csrf": {h.csrf(t)}, "require_2fa": {"1"},
+	})
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+		t.Fatalf("an account with no factor imposed the policy on everyone: %q", loc)
+	}
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
+		t.Fatal("the account locked itself out anyway")
+	}
+}
+
+// The command line wins, both ways: pinned on, the interface cannot relax it;
+// pinned off, it cannot impose it. The second is the way back for a server
+// whose only account has shut itself out.
+func TestTheCommandLineOverridesTheInterface(t *testing.T) {
+	h := newHarness(t, RequireSecondFactor(pin(false)))
+	h.enrolledRoot(t)
+
+	resp := h.post(t, "/parametres/serveur", url.Values{
+		"csrf": {h.csrf(t)}, "require_2fa": {"1"},
+	})
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+		t.Fatalf("a pinned policy was changed from the interface: %q", loc)
+	}
+
+	h.addUser(t, "alice")
+	h.signInAs(t, "alice")
+	if resp := h.get(t, "/"); resp.StatusCode != http.StatusOK {
+		t.Fatal("the policy applied despite being pinned off")
+	}
+}
+
+// The page is a rule about everyone, so it belongs to the account the server
+// was set up with - like the journal.
+func TestTheServerPageIsRootsAlone(t *testing.T) {
+	h := newHarness(t)
+	h.addAdmin(t, "admin")
+	h.signInAs(t, "admin")
+
+	if resp := h.get(t, "/parametres/serveur"); resp.StatusCode == http.StatusOK {
+		t.Fatal("an administrator who is not the root account reached the server page")
+	}
+	resp := h.post(t, "/parametres/serveur", url.Values{
+		"csrf": {h.csrf(t)}, "require_2fa": {"1"},
+	})
+	if resp.StatusCode == http.StatusSeeOther && !strings.Contains(resp.Header.Get("Location"), "erreur=") {
+		t.Fatal("an administrator who is not the root account changed the policy")
 	}
 }

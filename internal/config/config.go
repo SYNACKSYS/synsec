@@ -78,6 +78,12 @@ type Config struct {
 
 	// RequireSecondFactor makes a second factor compulsory for every account.
 	//
+	// Three states, which is why it is a pointer. Left unset, the interface
+	// decides and the choice is stored in the database. Passed on the command
+	// line, it wins either way - on, and no administrator can relax it from a
+	// browser; off, and it is the way back for a server whose only root
+	// account has locked itself out of its own policy.
+	//
 	// Off by default, because a household server where one person forgets
 	// their phone and locks themselves out is a worse outcome than the risk it
 	// removes. On a server anyone can reach it is the setting that matters
@@ -86,7 +92,7 @@ type Config struct {
 	// It applies to the browser interface. Service tokens are unaffected -
 	// there is no second factor a device could hold, and the token secret is
 	// already 256 random bits.
-	RequireSecondFactor bool
+	RequireSecondFactor *bool
 }
 
 // Default returns the configuration before any flag is applied.
@@ -102,7 +108,7 @@ func Default() Config {
 		TrustedProxies: envList(EnvTrustedProxies),
 		WebAllow:       envList(EnvWebAllow),
 
-		RequireSecondFactor: envBool(EnvRequire2FA),
+		RequireSecondFactor: envSwitch(EnvRequire2FA),
 	}
 }
 
@@ -211,14 +217,18 @@ func envList(key string) []string {
 	return out
 }
 
-// envBool reads a switch. Anything a person would plausibly write for "yes"
-// counts; everything else, including an unset variable, is off.
-func envBool(key string) bool {
+// envSwitch reads a three-state switch. An unset or unreadable variable leaves
+// the decision to the interface; anything a person would plausibly write for
+// yes or no settles it here.
+func envSwitch(key string) *bool {
+	yes, no := true, false
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
 	case "1", "true", "oui", "yes", "on":
-		return true
+		return &yes
+	case "0", "false", "non", "no", "off":
+		return &no
 	default:
-		return false
+		return nil
 	}
 }
 

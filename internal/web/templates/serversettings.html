@@ -1,0 +1,89 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Sécurité du serveur</h1>
+    <p class="subtitle">
+      Des règles qui valent pour tout le monde, y compris toi. À ne pas
+      confondre avec tes propres réglages, qui ne concernent que ton compte.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <h2>Second facteur obligatoire</h2>
+    <p class="help">
+      Le compte qui n'a qu'un mot de passe est celui qui tombe le jour où ce
+      mot de passe fuite ailleurs. Chacun choisit entre une application
+      d'authentification et une clé de sécurité ; l'une des deux suffit.
+    </p>
+
+    {{if .PolicyPinned}}
+    <p class="alert alert-warn">
+      Cette règle est <strong>fixée au démarrage du serveur</strong> et vaut
+      {{if .RequireFactor}}<strong>obligatoire</strong>{{else}}<strong>facultatif</strong>{{end}}.
+      Elle ne se change pas ici : modifie l'option <code>-require-2fa</code>
+      puis redémarre.
+    </p>
+    {{else}}
+    <form method="post" action="/parametres/serveur"
+          {{if not .RequireFactor}}data-confirm="Les comptes sans second facteur n'atteindront plus que les pages d'enrôlement. Continuer ?"{{end}}>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field field-check">
+        <input id="require_2fa" name="require_2fa" type="checkbox" value="1"
+               {{if .RequireFactor}}checked{{end}}>
+        <label for="require_2fa">
+          Exiger un second facteur de tous les comptes
+        </label>
+      </div>
+
+      <p class="help">
+        Une fois activé, un compte qui n'a rien enregistré peut toujours se
+        connecter - sinon personne ne pourrait s'enrôler - mais n'atteint que
+        les deux pages d'enrôlement. Retirer son dernier facteur lui sera
+        refusé.
+      </p>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+    {{end}}
+  </div>
+</div>
+
+<div class="page-head section">
+  <div>
+    <h1>Fixé au démarrage</h1>
+    <p class="subtitle">
+      Ces réglages sont lus une fois, au lancement. Les proposer ici
+      promettrait un changement que rien n'applique.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <dl class="facts">
+      <dt>Délai d'inactivité</dt>
+      <dd>{{.SessionIdle}} <span class="muted">- option <code>-session-idle</code></span></dd>
+
+      <dt>Adresses autorisées sur l'interface</dt>
+      <dd class="muted">option <code>-web-allow</code></dd>
+
+      <dt>Proxies de confiance</dt>
+      <dd class="muted">option <code>-trusted-proxies</code></dd>
+
+      <dt>Conservation du journal</dt>
+      <dd class="muted">option <code>-audit-retain</code></dd>
+    </dl>
+
+    <p class="help">
+      Le filtrage par adresse reste volontairement hors de cette page : se
+      retirer soi-même de sa propre liste blanche depuis un navigateur est une
+      façon simple de perdre l'accès au serveur.
+    </p>
+  </div>
+</div>
+{{end}}

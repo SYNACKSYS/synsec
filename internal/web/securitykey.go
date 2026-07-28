@@ -461,7 +461,7 @@ func (s *Server) removeSecurityKey(w http.ResponseWriter, r *http.Request) {
 
 	// Removing the last factor on a server that insists on one would only
 	// bounce this account into the enrolment page.
-	if s.requireFactor && len(keys) == 1 {
+	if s.requiresFactor() && len(keys) == 1 {
 		secret, err := s.vault.DB().TOTPSecret(r.Context(), user.ID)
 		if err != nil {
 			s.fail(w, r, user, err)

@@ -50,7 +50,7 @@ var enrolmentPaths = map[string]bool{
 // mustEnrol reports whether this account owes a second factor the server
 // insists on.
 func (s *Server) mustEnrol(r *http.Request, user store.User) bool {
-	if !s.requireFactor {
+	if !s.requiresFactor() {
 		return false
 	}
 	has, err := s.vault.DB().HasSecondFactor(r.Context(), user.ID)

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"synsec/internal/config"
@@ -33,7 +34,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=%s serve -data %s -listen %s
+ExecStart=%s %s
 Restart=always
 RestartSec=5s
 
@@ -47,13 +48,28 @@ ReadWritePaths=%s
 WantedBy=multi-user.target
 `
 
+// unitArgs renders the command line for the unit file.
+//
+// systemd splits ExecStart on whitespace, so a data directory with a space in
+// it would silently become two arguments. Quoting the ones that need it is
+// what keeps "/srv/mes secrets" a single path.
+func unitArgs(cfg config.Config) string {
+	args := serveArgs(cfg)
+	for i, arg := range args {
+		if strings.ContainsAny(arg, " 	\"") {
+			args[i] = strconv.Quote(arg)
+		}
+	}
+	return strings.Join(args, " ")
+}
+
 func installService(cfg config.Config) error {
 	exe, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("chemin de l'exécutable : %w", err)
 	}
 
-	unit := fmt.Sprintf(unitTemplate, exe, cfg.DataDir, cfg.Listen, cfg.DataDir)
+	unit := fmt.Sprintf(unitTemplate, exe, unitArgs(cfg), cfg.DataDir)
 
 	if err := os.WriteFile(unitPath, []byte(unit), 0o644); err != nil {
 		if errors.Is(err, os.ErrPermission) {

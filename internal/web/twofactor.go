@@ -377,7 +377,7 @@ func (s *Server) disableTwoFactor(w http.ResponseWriter, r *http.Request) {
 	// The server may insist on a second factor. Turning off the last one would
 	// only bounce this account into the enrolment page, so it is refused here
 	// with a reason rather than allowed and undone a moment later.
-	if s.requireFactor && keys == 0 {
+	if s.requiresFactor() && keys == 0 {
 		s.redirectWithError(w, r, back,
 			"Ce serveur exige un second facteur. Enregistre une clé de sécurité avant de retirer l'application.")
 		return

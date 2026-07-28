@@ -935,3 +935,29 @@ h2.stacked { margin-top: 1.5rem; }
   opacity: .55;
   cursor: not-allowed;
 }
+
+/* A short list of settings and where they come from. A definition list rather
+   than a table: there are two columns and no header worth writing. */
+.facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: .5rem 1rem;
+  margin: 0;
+  font-size: .9375rem;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+@media (max-width: 40rem) {
+  .facts {
+    grid-template-columns: 1fr;
+    gap: 0 0;
+  }
+  .facts dd { margin-bottom: .75rem; }
+}

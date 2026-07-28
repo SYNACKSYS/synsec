@@ -8,6 +8,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"embed"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"synsec/internal/auth"
@@ -51,6 +53,7 @@ var pageNames = []string{
 	"audit.html",
 	"audit_access.html",
 	"settings.html",
+	"serversettings.html",
 }
 
 // Server renders the browser interface.
@@ -75,9 +78,12 @@ type Server struct {
 	clients *clientip.Resolver
 	allow   []string
 
-	// requireFactor makes a second factor compulsory for every account. An
-	// account that has none can reach the enrolment pages and nothing else.
-	requireFactor bool
+	// requirePin is the command line's word on the second factor, when it said
+	// anything: it wins over the stored setting either way. requireStored is
+	// what the interface last chose, cached because it is consulted on every
+	// request and changes about once in the life of a server.
+	requirePin    *bool
+	requireStored atomic.Bool
 
 	// pendingKey signs a sign-in that has passed the password and still owes a
 	// code. Made at start-up and never stored: a restart cancels the sign-ins
@@ -115,8 +121,21 @@ func RestrictTo(entries []string) Option {
 // a server anyone can reach that is the whole attack. Signing in still works -
 // there would be no way to enrol otherwise - but the session reaches the
 // enrolment pages and nothing else until a factor exists.
-func RequireSecondFactor(on bool) Option {
-	return func(s *Server) { s.requireFactor = on }
+func RequireSecondFactor(pin *bool) Option {
+	return func(s *Server) { s.requirePin = pin }
+}
+
+// requiresFactor answers the only question the rest of the server asks.
+//
+// The command line wins when it spoke. That is what makes the setting safe to
+// expose in a browser: an operator can pin it on and no administrator can
+// relax it, and an operator can pin it off, which is the way back for a server
+// whose only account has locked itself out of its own policy.
+func (s *Server) requiresFactor() bool {
+	if s.requirePin != nil {
+		return *s.requirePin
+	}
+	return s.requireStored.Load()
 }
 
 // WithSessionIdle sets how long a browser may sit untouched before being
@@ -159,6 +178,16 @@ func New(v *vault.Manager, opts ...Option) (*Server, error) {
 	}
 	for _, opt := range opts {
 		opt(s)
+	}
+
+	// Read once here rather than on every request. This process is the only
+	// writer, so the cache cannot go stale behind its own back.
+	if s.requirePin == nil {
+		stored, err := v.DB().ServerSetting(context.Background(), settingRequire2FA, "")
+		if err != nil {
+			return nil, fmt.Errorf("web: reading the server policy: %w", err)
+		}
+		s.requireStored.Store(stored == "1")
 	}
 
 	pages, err := parsePages()
@@ -268,6 +297,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /comptes/motdepasse", s.requireAdmin(s.resetPassword))
 	mux.HandleFunc("POST /comptes/supprimer", s.requireAdmin(s.deleteAccount))
 
+	// The server's own policy belongs to the account it was set up with, like
+	// the journal: it is a rule about everyone, not a preference.
+	mux.HandleFunc("GET /parametres/serveur", s.requireRoot(s.showServerSettings))
+	mux.HandleFunc("POST /parametres/serveur", s.requireRoot(s.saveServerSettings))
+
 	mux.HandleFunc("GET /journal", s.requireAuditReader(s.showAudit))
 	// Handing the journal to someone else is the root account's alone, so it
 	// is gated on that rather than on being able to read it.
@@ -308,7 +342,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 			d.Scale = scale
 		}
 		d.CanReadAudit = canReadAuditFrom(r)
-		d.RequireFactor = s.requireFactor
+		d.RequireFactor = s.requiresFactor()
+		d.PolicyPinned = s.requirePin != nil
 		d.MustEnrol = mustEnrolFrom(r)
 		data = d
 	}

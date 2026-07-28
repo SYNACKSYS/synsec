@@ -43,6 +43,9 @@
       {{if .User.IsAdmin}}
       <a href="/comptes" {{if eq .Nav "comptes"}}aria-current="page"{{end}}>Comptes</a>
       {{end}}
+      {{if .User.IsRoot}}
+      <a href="/parametres/serveur" {{if eq .Nav "serveur"}}aria-current="page"{{end}}>Sécurité du serveur</a>
+      {{end}}
       {{if .CanReadAudit}}
       <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>
       {{end}}

@@ -90,7 +90,7 @@ func installService(cfg config.Config) error {
 			"        Pour le remplacer :  synsec service uninstall", serviceName)
 	}
 
-	args := []string{"serve", "-data", cfg.DataDir, "-listen", cfg.Listen}
+	args := serveArgs(cfg)
 
 	service, err := m.CreateService(serviceName, exe, mgr.Config{
 		DisplayName:  "SYNSEC - serveur de secrets",

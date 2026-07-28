@@ -300,11 +300,34 @@ n'est pas suffisant : le compte qui n'a qu'un mot de passe est celui qui tombe
 le jour où ce mot de passe fuite ailleurs, et c'est rarement celui de la
 personne qui a lu cette page.
 
+Deux façons de l'activer, selon qui doit pouvoir revenir dessus.
+
+**Depuis l'interface.** *Sécurité du serveur*, dans la section Administration.
+Réservée au compte principal, comme le journal : c'est une règle sur tout le
+monde, pas une préférence. Le choix est enregistré et survit à un redémarrage.
+
+L'activation est refusée si ton propre compte n'a pas encore de second
+facteur - elle t'enfermerait aussitôt hors de tes coffres.
+
+**Depuis la ligne de commande.** Elle a le dernier mot, dans les deux sens :
+
 ```
 synsec serve -require-2fa
 ```
 
-Ou `SYNSEC_REQUIRE_2FA=1` dans l'unité systemd ou le conteneur.
+Ainsi fixée, aucun administrateur ne peut la relâcher depuis un navigateur ;
+la page affiche l'état sans proposer de le changer. Et dans l'autre sens :
+
+```
+synsec serve -require-2fa=false
+```
+
+C'est la porte de sortie du serveur dont le seul compte s'est enfermé hors de
+sa propre règle. Le `=` est obligatoire : `-require-2fa false` laisserait la
+valeur être lue comme l'option suivante.
+
+Sans mention de l'option, c'est l'interface qui décide.
+`SYNSEC_REQUIRE_2FA` accepte `1` ou `0` et se comporte pareil.
 
 La connexion continue de fonctionner - sans quoi personne ne pourrait
 s'enrôler - mais la session n'atteint que **Vérification en deux étapes** et
@@ -320,6 +343,15 @@ détenir de plus que son jeton, et ce jeton est déjà 256 bits tirés au hasard
 c'est la restriction d'adresse et la portée par secret qui l'encadrent, pas un
 second facteur. La ligne de commande non plus - elle s'exécute sur la machine,
 où quiconque peut l'atteindre a déjà la clé racine.
+
+**En service.** `synsec service install` inscrit dans la définition du service
+toutes les options qu'on lui passe - ce sont exactement celles de
+`synsec serve`. Pour les changer ensuite, réinstalle le service :
+
+```
+sudo synsec service uninstall
+sudo synsec service install -web-allow 192.168.1.0/24 -require-2fa
+```
 
 **Avant de l'activer.** Préviens les comptes qui existent. Ils ne pourront plus
 rien faire tant qu'ils n'auront pas enrôlé quelque chose, et une clé exige un

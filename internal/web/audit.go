@@ -54,6 +54,7 @@ var auditLabels = map[string]string{
 	"access.denied":    "Accès refusé",
 	"audit.grant":      "Journal ouvert à un compte",
 	"audit.revoke":     "Accès au journal retiré",
+	"server.policy":    "Règle du serveur modifiée",
 }
 
 // requireAuditReader gates the log.

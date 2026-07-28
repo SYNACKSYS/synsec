@@ -88,25 +88,9 @@ func logToFile(dir string) error {
 
 func runServer(args []string, stop <-chan struct{}) error {
 	cfg := config.Default()
-	var trustedProxies, webAllow string
 
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
-	fs.StringVar(&cfg.DataDir, "data", cfg.DataDir, "dossier de données")
-	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "adresse d'écoute")
-	// Le défaut est la valeur déjà résolue depuis l'environnement, sans quoi
-	// l'option écraserait SYNSEC_TLS_CERT par une chaîne vide.
-	fs.StringVar(&cfg.TLSCert, "tls-cert", cfg.TLSCert, "certificat TLS, chaîne complète (défaut : auto-signé)")
-	fs.StringVar(&cfg.TLSKey, "tls-key", cfg.TLSKey, "clé privée du certificat")
-	fs.StringVar(&trustedProxies, "trusted-proxies", "",
-		"adresses des proxies dont X-Forwarded-For est cru, séparées par des virgules")
-	fs.StringVar(&webAllow, "web-allow", "",
-		"restreint l'interface web à ces adresses ou blocs CIDR, séparés par des virgules")
-	fs.DurationVar(&cfg.SessionIdle, "session-idle", cfg.SessionIdle,
-		"délai d'inactivité avant déconnexion de l'interface web")
-	fs.DurationVar(&cfg.AuditRetain, "audit-retain", cfg.AuditRetain,
-		"durée de conservation du journal d'audit (0 = sans limite)")
-	fs.BoolVar(&cfg.RequireSecondFactor, "require-2fa", cfg.RequireSecondFactor,
-		"impose un second facteur - code ou clé de sécurité - à tous les comptes")
+	apply := serveOptions(fs, &cfg)
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, strings.TrimSpace(`
 synsec serve - démarre le serveur
@@ -118,12 +102,7 @@ Options :
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if trustedProxies != "" {
-		cfg.TrustedProxies = splitList(trustedProxies)
-	}
-	if webAllow != "" {
-		cfg.WebAllow = splitList(webAllow)
-	}
+	apply()
 	if err := cfg.Validate(); err != nil {
 		return err
 	}

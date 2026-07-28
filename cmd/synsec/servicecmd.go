@@ -36,11 +36,15 @@ func usageService() error {
 	fmt.Fprint(os.Stderr, strings.TrimSpace(`
 synsec service - démarrage automatique
 
-  synsec service install [-data ...] [-listen ...]
+  synsec service install [options de serve]
   synsec service uninstall
   synsec service status
 
 Le service sert exclusivement en HTTPS. Il n'existe aucun mode HTTP.
+
+Les options acceptées sont celles de « synsec serve » : elles sont inscrites
+dans la définition du service et reprises à chaque démarrage. Pour les changer
+ensuite, réinstalle le service avec les nouvelles.
 
 Installe SYNSEC comme service système : il démarrera tout seul avec la
 machine, avant même qu'un utilisateur ouvre une session, et redémarrera de
@@ -55,11 +59,14 @@ func runServiceInstall(args []string) error {
 	cfg := config.Default()
 
 	fs := flag.NewFlagSet("service install", flag.ExitOnError)
-	fs.StringVar(&cfg.DataDir, "data", cfg.DataDir, "dossier de données")
-	fs.StringVar(&cfg.Listen, "listen", cfg.Listen, "adresse d'écoute")
+	// The same options as `serve`, and they are written into the service
+	// definition: a server installed with a policy has to come back with it
+	// after a reboot.
+	apply := serveOptions(fs, &cfg)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
+	apply()
 
 	// The data directory is resolved to an absolute path before it is baked
 	// into the service definition: a service starts with a working directory
@@ -80,6 +87,9 @@ func runServiceInstall(args []string) error {
 
 	fmt.Printf("Service %s installé et démarré.\n", serviceName)
 	fmt.Printf("Dossier de données : %s\n", cfg.DataDir)
+	if extra := serveArgs(cfg); len(extra) > 4 {
+		fmt.Printf("Options enregistrées : %s\n", strings.Join(extra[5:], " "))
+	}
 	fmt.Println()
 	fmt.Println("Il redémarrera automatiquement avec la machine.")
 	fmt.Println("Pour vérifier :  synsec service status")

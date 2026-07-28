@@ -822,3 +822,74 @@ input[type="search"] {
 
 /* A heading opening a new block inside a card. */
 h2.stacked { margin-top: 1.5rem; }
+
+/* Enrolment: two steps side by side on a wide screen, stacked on a narrow one.
+   The choice matters here - someone holds a phone in one hand and reads the
+   screen with the other, so the code and the field it feeds belong in view at
+   the same time. */
+.steps {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  align-items: start;
+  max-width: 46rem;
+}
+
+.step h2 {
+  display: flex;
+  align-items: center;
+  gap: .625rem;
+  margin-bottom: .75rem;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+/* The symbol keeps its white quiet zone whatever the theme: a dark background
+   bleeding into it is the classic reason a scanner refuses to lock on. */
+.qr-frame {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+  padding: .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+}
+
+.qr-frame svg { display: block; }
+
+.fallback summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: .875rem;
+}
+
+.fallback summary:hover { color: var(--accent); }
+.fallback > *:not(summary) { margin-top: .75rem; }
+
+/* A key is read aloud in blocks of four, so it must wrap on the blocks rather
+   than mid-group. */
+.token.key {
+  word-spacing: .35rem;
+  line-height: 1.9;
+}
+
+/* Six digits, spaced out and centred: the field is filled by copying, and
+   copying is easier when the characters do not run together. */
+.code-input {
+  font-family: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  font-size: 1.35rem;
+  letter-spacing: .4rem;
+  text-align: center;
+}

@@ -50,44 +50,59 @@
   </div>
 </div>
 {{else}}
-<div class="card card-narrow">
-  <div class="card-body">
-    <form method="post" action="/parametres/verification">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="hidden" name="secret" value="{{.TOTPSecret}}">
+<form method="post" action="/parametres/verification">
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <input type="hidden" name="secret" value="{{.TOTPSecret}}">
 
-      <h2>1. Ajoute le compte à ton application</h2>
-      <p class="help">
-        Google Authenticator, Aegis, 1Password, ou toute autre. Saisis cette
-        clé à la main :
-      </p>
-      <pre class="token">{{.TOTPGrouped}}</pre>
-      <p class="help">
-        Ou colle cette adresse, si ton application sait la lire :
-      </p>
-      <pre class="snippet">{{.TOTPURI}}</pre>
-
-      <h2 class="stacked">2. Recopie le code affiché</h2>
-      <div class="field">
-        <label for="code">Code à six chiffres</label>
-        <input id="code" name="code" type="text" inputmode="numeric"
-               autocomplete="one-time-code" required placeholder="123456">
+  <div class="steps">
+    <section class="card step">
+      <div class="card-body">
+        <h2><span class="step-number">1</span> Scanne ce code</h2>
         <p class="help">
-          Rien n'est enregistré tant que ce code n'a pas prouvé que ton
-          application détient bien la clé.
+          Avec Google Authenticator, Aegis, 1Password, ou toute autre
+          application du même genre.
         </p>
-      </div>
 
-      <div class="form-actions">
-        <button type="submit" class="btn btn-primary">Activer</button>
+        {{if .TOTPQR}}
+        <div class="qr-frame">{{.TOTPQR}}</div>
+        {{end}}
+
+        <details class="fallback">
+          <summary>Saisir la clé à la main</summary>
+          <p class="help">Si tu ne peux pas scanner, entre cette clé :</p>
+          <pre class="token key">{{.TOTPGrouped}}</pre>
+          <p class="help">Ou colle cette adresse :</p>
+          <pre class="snippet">{{.TOTPURI}}</pre>
+        </details>
       </div>
-    </form>
+    </section>
+
+    <section class="card step">
+      <div class="card-body">
+        <h2><span class="step-number">2</span> Recopie le code affiché</h2>
+
+        <div class="field">
+          <label for="code">Code à six chiffres</label>
+          <input id="code" name="code" type="text" inputmode="numeric"
+                 autocomplete="one-time-code" maxlength="6" required
+                 placeholder="123456" class="code-input">
+          <p class="help">
+            Rien n'est enregistré tant que ce code n'a pas prouvé que ton
+            application détient bien la clé.
+          </p>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Activer</button>
+        </div>
+      </div>
+    </section>
   </div>
-</div>
+</form>
 
 <p class="hint">
-  Quitter cette page sans valider ne laisse rien derrière : la clé affichée est
-  tirée à chaque visite et oubliée si elle n'est pas confirmée.
+  Quitter cette page sans valider ne laisse rien derrière : la clé est tirée à
+  chaque visite et oubliée si elle n'est pas confirmée.
 </p>
 {{end}}
 {{end}}

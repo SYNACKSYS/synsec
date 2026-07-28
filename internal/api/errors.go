@@ -18,12 +18,13 @@ type errorBody struct {
 
 // Error codes returned by the API.
 const (
-	codeUnauthorized = "unauthorized"
-	codeForbidden    = "forbidden"
-	codeNotFound     = "not_found"
-	codeBadRequest   = "bad_request"
-	codeSealed       = "sealed"
-	codeInternal     = "internal"
+	codeUnauthorized    = "unauthorized"
+	codeForbidden       = "forbidden"
+	codeNotFound        = "not_found"
+	codeBadRequest      = "bad_request"
+	codeSealed          = "sealed"
+	codeInternal        = "internal"
+	codeTooManyRequests = "too_many_requests"
 )
 
 func writeJSON(w http.ResponseWriter, status int, body any) {

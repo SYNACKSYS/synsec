@@ -646,3 +646,95 @@ func TestStrictTransportSecurityIsSet(t *testing.T) {
 		t.Fatal("no Strict-Transport-Security header on the health endpoint")
 	}
 }
+
+// A device that polls normally must never notice the limit.
+func TestNormalPollingIsNotLimited(t *testing.T) {
+	h := newHarness(t)
+	h.putSecret(t, "mqtt_password", "s3cr3t")
+	token := h.mintToken(t, nil)
+
+	for i := 0; i < burstPerAddress; i++ {
+		resp := h.do(t, http.MethodGet, "/api/v1/secrets/value?name=mqtt_password", token, nil)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("request %d returned %d: a normal burst was refused", i, resp.StatusCode)
+		}
+	}
+}
+
+// Past the burst, the caller is turned away - and told when to come back.
+func TestFloodIsRefused(t *testing.T) {
+	h := newHarness(t)
+	token := h.mintToken(t, nil)
+
+	var last *http.Response
+	for i := 0; i < burstPerAddress+10; i++ {
+		last = h.do(t, http.MethodGet, "/api/v1/secrets", token, nil)
+	}
+	if last.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("a flood ended at %d, want 429", last.StatusCode)
+	}
+	if last.Header.Get("Retry-After") == "" {
+		t.Error("the refusal does not say when to come back")
+	}
+}
+
+// The limit sits before authentication, so an unauthenticated flood costs no
+// database work at all.
+func TestUnauthenticatedFloodIsRefusedToo(t *testing.T) {
+	h := newHarness(t)
+
+	var last *http.Response
+	for i := 0; i < burstPerAddress+10; i++ {
+		last = h.do(t, http.MethodGet, "/api/v1/health", "", nil)
+	}
+	if last.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("an unauthenticated flood ended at %d, want 429", last.StatusCode)
+	}
+}
+
+// One noisy device must not lock out the rest of the house.
+func TestOneAddressDoesNotStarveAnother(t *testing.T) {
+	limiter := newLimiter(time.Now)
+
+	for i := 0; i < burstPerAddress*2; i++ {
+		limiter.allow("192.168.1.10")
+	}
+	if !limiter.allow("192.168.1.20") {
+		t.Fatal("a second address was refused because the first flooded")
+	}
+}
+
+// The bucket refills, or a device throttled once would stay throttled.
+func TestBucketRefillsOverTime(t *testing.T) {
+	now := time.Now()
+	limiter := newLimiter(func() time.Time { return now })
+
+	for i := 0; i < burstPerAddress+5; i++ {
+		limiter.allow("192.168.1.10")
+	}
+	if limiter.allow("192.168.1.10") {
+		t.Fatal("the bucket never emptied")
+	}
+
+	now = now.Add(10 * time.Second)
+	if !limiter.allow("192.168.1.10") {
+		t.Fatal("the bucket did not refill after ten seconds")
+	}
+}
+
+// An address that goes quiet is forgotten, so the table tracks the callers
+// there are rather than every address ever seen.
+func TestIdleAddressesAreForgotten(t *testing.T) {
+	now := time.Now()
+	limiter := newLimiter(func() time.Time { return now })
+
+	limiter.allow("192.168.1.10")
+	now = now.Add(forgetAfter + time.Minute)
+	limiter.allow("192.168.1.20")
+
+	limiter.mu.Lock()
+	defer limiter.mu.Unlock()
+	if _, still := limiter.buckets["192.168.1.10"]; still {
+		t.Fatal("an address idle past the horizon is still tracked")
+	}
+}

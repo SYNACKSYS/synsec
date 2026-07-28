@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"synsec/internal/auth"
+	"synsec/internal/qr"
 	"synsec/internal/store"
 )
 
@@ -247,7 +249,20 @@ func (s *Server) showTwoFactorSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	data.TOTPSecret = fresh
 	data.TOTPGrouped = auth.FormatTOTPSecret(fresh)
-	data.TOTPURI = auth.TOTPURI(fresh, "SYNSEC", user.Username)
+	uri := auth.TOTPURI(fresh, "SYNSEC", user.Username)
+	data.TOTPURI = uri
+
+	// The code is drawn as inline SVG. An image would be a second request, and
+	// the page forbids fetching anything at all; a data: URI would work but
+	// costs a base64 round trip for no gain.
+	if code, err := qr.Encode(uri); err == nil {
+		data.TOTPQR = template.HTML(code.SVG(200, "qr")) //nolint:gosec // generated markup, no input reaches it
+	} else {
+		// Falling back to the typed key is a worse experience, not a broken
+		// one, so a symbol that will not encode is logged and skipped.
+		logError(r, err)
+	}
+
 	s.render(w, r, "twofactor_settings.html", http.StatusOK, data)
 }
 

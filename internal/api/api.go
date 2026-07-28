@@ -30,6 +30,9 @@ type Server struct {
 	// against the address this yields, and anyone can put anything in that
 	// header.
 	clients *clientip.Resolver
+
+	// limiter bounds how fast one address may call, whatever it is asking for.
+	limiter *limiter
 }
 
 // Option configures a Server.
@@ -52,6 +55,7 @@ func withClock(now func() time.Time) Option {
 func New(v *vault.Manager, opts ...Option) *Server {
 	direct, _ := clientip.New(nil)
 	s := &Server{vault: v, now: time.Now, clients: direct}
+	s.limiter = newLimiter(func() time.Time { return s.now() })
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -64,14 +68,14 @@ func (s *Server) Handler() http.Handler {
 
 	// Liveness, deliberately unauthenticated and deliberately mute about
 	// anything beyond whether the server is up and whether it is sealed.
-	mux.HandleFunc("GET /api/"+Version+"/health", s.health)
+	mux.HandleFunc("GET /api/"+Version+"/health", s.limit(s.health))
 
 	// One entry at a time. There is deliberately no endpoint that returns a
 	// set of values: a secret is a single thing, asked for by name.
-	mux.HandleFunc("GET /api/"+Version+"/secrets", s.withToken(s.listSecrets))
-	mux.HandleFunc("GET /api/"+Version+"/secrets/value", s.withToken(s.getSecret))
-	mux.HandleFunc("PUT /api/"+Version+"/secrets/value", s.withToken(s.putSecret))
-	mux.HandleFunc("DELETE /api/"+Version+"/secrets/value", s.withToken(s.deleteSecret))
+	mux.HandleFunc("GET /api/"+Version+"/secrets", s.limit(s.withToken(s.listSecrets)))
+	mux.HandleFunc("GET /api/"+Version+"/secrets/value", s.limit(s.withToken(s.getSecret)))
+	mux.HandleFunc("PUT /api/"+Version+"/secrets/value", s.limit(s.withToken(s.putSecret)))
+	mux.HandleFunc("DELETE /api/"+Version+"/secrets/value", s.limit(s.withToken(s.deleteSecret)))
 
 	return recoverPanics(securityHeaders(mux))
 }

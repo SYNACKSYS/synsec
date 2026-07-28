@@ -272,6 +272,23 @@ Sans cette option le journal est conservé sans limite, ce qui est le bon défau
 à la maison. Les sessions expirées, elles, sont purgées toutes les heures dans
 tous les cas.
 
+### Le freinage de l'API, sans réglage
+
+L'interface web freinait déjà les tentatives de connexion ; l'API, elle, ne
+freinait rien. Ce n'est pas le jeton qui est en jeu - un secret de 256 bits
+tirés au hasard ne se devine pas - mais tout ce qui l'entoure : chaque appel
+coûte une lecture de base, chaque échec contre un identifiant connu coûte une
+ligne de journal, et il en faut peu pour remplir un disque ou noyer les lignes
+qui auraient dû se voir.
+
+Chaque adresse dispose donc de **30 appels d'un coup**, puis de **2 par
+seconde**. Un démarrage d'Home Assistant qui va chercher une poignée de secrets
+passe sans rien sentir ; un balayage est refusé avec un `429` et un en-tête
+`Retry-After`. Le freinage est vérifié **avant** l'authentification, si bien
+qu'un flot de requêtes non authentifiées ne touche jamais la base.
+
+Rien à activer : c'est le comportement par défaut, à la maison comme ailleurs.
+
 ## Le journal d'audit
 
 Chaque lecture, écriture, partage, connexion et refus est enregistré, avec

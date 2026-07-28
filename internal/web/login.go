@@ -3,6 +3,7 @@ package web
 import (
 	"errors"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
@@ -79,10 +80,13 @@ type pageData struct {
 
 	// The second factor: whether it is on, the secret being offered for
 	// enrolment, and the one-time codes shown exactly once.
-	TOTPEnabled   bool
-	TOTPSecret    string
-	TOTPGrouped   string
-	TOTPURI       string
+	TOTPEnabled bool
+	TOTPSecret  string
+	TOTPGrouped string
+	TOTPURI     string
+	// TOTPQR is a symbol this server drew itself, so no input of any kind
+	// reaches the markup.
+	TOTPQR        template.HTML
 	RecoveryCodes []string
 	RecoveryLeft  int
 

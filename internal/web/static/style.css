@@ -769,9 +769,27 @@ textarea.masked {
   transition: filter .12s ease;
 }
 
+/* Without scripting, focus is the only way to uncover a value, so it has to
+   work. With the buttons in place it must not: reading and editing were the
+   same gesture, one stray keystroke away from a version nobody meant to save. */
 textarea.masked:focus {
   filter: none;
 }
+
+.has-actions textarea.masked:focus {
+  filter: blur(5px);
+}
+
+/* The row of controls under a value: show it, or copy it without ever putting
+   it on screen. */
+.value-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+
+.value-actions[hidden] { display: none; }
 
 /* Filters above the journal: one row that wraps rather than a stack of
    fields, so the table stays visible while they are being adjusted. */

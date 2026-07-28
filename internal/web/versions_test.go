@@ -134,3 +134,51 @@ func TestRevertRefusesNonsense(t *testing.T) {
 		}
 	}
 }
+
+// Reading a secret and editing it used to be the same gesture: the value
+// uncovered itself when the field took focus. These hold the two apart.
+
+func TestASecretOffersCopyAndReveal(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+	h.writeVersions(t, vault.ID, "mot_de_passe_mqtt", "s3cr3t")
+
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret?name=mot_de_passe_mqtt"))
+
+	for _, want := range []string{`data-secret-field`, `data-copy="#value"`, `data-reveal="#value"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the secret page carries no %s", want)
+		}
+	}
+	// Still covered when it arrives, whatever the buttons do afterwards.
+	if !strings.Contains(page, `class="masked"`) {
+		t.Error("the value arrives uncovered")
+	}
+}
+
+// A new secret has nothing to uncover, so the controls must not appear.
+func TestANewSecretHasNoRevealControls(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret"))
+	if strings.Contains(page, "data-secret-field") {
+		t.Error("an empty form offers to uncover a value that does not exist")
+	}
+}
+
+// The controls only work with scripting, so they arrive hidden. A button that
+// cannot do anything is worse than no button.
+func TestScriptedControlsArriveHidden(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+	h.writeVersions(t, vault.ID, "mot_de_passe_mqtt", "s3cr3t")
+
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret?name=mot_de_passe_mqtt"))
+	if !strings.Contains(page, "data-secret-actions hidden") {
+		t.Error("the value controls are not hidden before the script runs")
+	}
+}

@@ -79,9 +79,17 @@
         <details class="fallback">
           <summary>Saisir la clé à la main</summary>
           <p class="help">Si tu ne peux pas scanner, entre cette clé :</p>
-          <pre class="token key">{{.TOTPGrouped}}</pre>
+          <pre class="token key" id="cle">{{.TOTPGrouped}}</pre>
+          <div class="value-actions" data-needs-js hidden>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    data-copy="#cle">Copier la clé</button>
+          </div>
           <p class="help">Ou colle cette adresse :</p>
-          <pre class="snippet">{{.TOTPURI}}</pre>
+          <pre class="snippet" id="adresse">{{.TOTPURI}}</pre>
+          <div class="value-actions" data-needs-js hidden>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    data-copy="#adresse">Copier l'adresse</button>
+          </div>
         </details>
       </div>
     </section>

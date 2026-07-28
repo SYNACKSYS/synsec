@@ -78,6 +78,9 @@ func parseEnv(r io.Reader) ([]Entry, error) {
 		if key == "" {
 			return nil, fmt.Errorf("ligne %d : la clé est vide", line)
 		}
+		if len(key) > maxKeyBytes {
+			return nil, fmt.Errorf("ligne %d : la clé fait plus de %d caractères", line, maxKeyBytes)
+		}
 		if first, dup := seen[key]; dup {
 			return nil, fmt.Errorf("ligne %d : « %s » apparaît déjà ligne %d", line, key, first)
 		}
@@ -134,6 +137,9 @@ func parseYAML(r io.Reader) ([]Entry, error) {
 				"ligne %d : « %s » n'a pas de valeur sur sa ligne, le fichier a donc des niveaux imbriqués ; "+
 					"SYNSEC ne lit qu'une liste plate « clé: valeur »", line, key)
 		}
+		if len(key) > maxKeyBytes {
+			return nil, fmt.Errorf("ligne %d : la clé fait plus de %d caractères", line, maxKeyBytes)
+		}
 		if first, dup := seen[key]; dup {
 			return nil, fmt.Errorf("ligne %d : « %s » apparaît déjà ligne %d", line, key, first)
 		}
@@ -160,6 +166,11 @@ func dropBOM(s string, line int) string {
 	}
 	return s
 }
+
+// maxKeyBytes bounds a key. It becomes the readable name of a secret, stored
+// and displayed; a key of several kilobytes means a malformed file rather than
+// something worth keeping.
+const maxKeyBytes = 200
 
 // maxLineBytes bounds a single line. A secret is a password or a key, and a
 // megabyte of one line means the wrong file was handed over.

@@ -44,7 +44,7 @@ func (s *Server) requireLogin(h http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
-			if !validCSRF(r, token) {
+			if !validCSRF(w, r, token) {
 				s.render(w, r, "message.html", http.StatusForbidden, pageData{
 					Title: "Action refusée",
 					User:  &user,
@@ -134,8 +134,10 @@ func csrfToken(sessionToken string) string {
 // read at all before the request has proved it belongs to a session.
 const maxRequestBytes = 2 << 20
 
-func validCSRF(r *http.Request, sessionToken string) bool {
-	r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBytes)
+func validCSRF(w http.ResponseWriter, r *http.Request, sessionToken string) bool {
+	// w is passed so that an oversized body closes the connection rather than
+	// leaving the server trying to keep it alive.
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
 
 	// A multipart body is not read by ParseForm, so the token would never be
 	// found and every upload would look like a forged request. Parsing it here
@@ -156,8 +158,13 @@ func validCSRF(r *http.Request, sessionToken string) bool {
 }
 
 // multipartMemory is how much of an upload is held in memory before the rest
-// spills to a temporary file.
-const multipartMemory = 1 << 20
+// would spill to a temporary file.
+//
+// Deliberately at least as large as maxRequestBytes, so nothing ever spills:
+// an uploaded secrets file is read, decrypted into the vault and forgotten,
+// without a plaintext copy of every household password appearing in the
+// operating system's temporary directory, however briefly.
+const multipartMemory = maxRequestBytes
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{

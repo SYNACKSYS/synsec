@@ -180,3 +180,29 @@ func TestByteOrderMarkIsIgnored(t *testing.T) {
 		t.Fatalf("the BOM broke the env parse: %+v", entries)
 	}
 }
+
+// A key becomes the readable name of a secret, stored and displayed. One of
+// several kilobytes means a malformed file, not something worth keeping.
+func TestOversizedKeyIsRefused(t *testing.T) {
+	long := strings.Repeat("a", maxKeyBytes+1)
+
+	for _, tc := range []struct{ format, body string }{
+		{FormatYAML, long + ": valeur\n"},
+		{FormatEnv, long + "=valeur\n"},
+	} {
+		_, err := Parse(strings.NewReader(tc.body), tc.format)
+		if err == nil {
+			t.Errorf("%s : an oversized key was accepted", tc.format)
+			continue
+		}
+		if !strings.Contains(err.Error(), "ligne 1") {
+			t.Errorf("%s : the error does not name the line: %v", tc.format, err)
+		}
+	}
+
+	// And one right at the limit still goes through.
+	entries := parse(t, FormatYAML, strings.Repeat("a", maxKeyBytes)+": valeur\n")
+	if len(entries) != 1 {
+		t.Fatal("a key at the limit was refused")
+	}
+}

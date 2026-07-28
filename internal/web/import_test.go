@@ -188,3 +188,48 @@ func TestReaderCannotImport(t *testing.T) {
 		t.Fatal("a reader's import wrote secrets")
 	}
 }
+
+// The uploaded file must never reach the server's disk. Above the in-memory
+// limit, ParseMultipartForm spills to a temporary file - which for this route
+// would mean a plaintext copy of every household password in the operating
+// system's temporary directory.
+func TestUploadNeverSpillsToDisk(t *testing.T) {
+	if multipartMemory < maxRequestBytes {
+		t.Fatalf("multipartMemory is %d and maxRequestBytes %d: an upload could be written to disk",
+			multipartMemory, maxRequestBytes)
+	}
+}
+
+// A filename is chosen by the client. It is shown back and written to the
+// audit log, so it must not be trusted to be a reasonable length.
+func TestOversizedFilenameIsBounded(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+	ctx := context.Background()
+
+	// Long enough to be unreasonable, short enough that the multipart header
+	// itself is still accepted: the point is what SYNSEC keeps, not what the
+	// transport rejects.
+	long := strings.Repeat("a", 300) + ".yaml"
+	h.upload(t, "/coffres/"+vault.ID+"/import", long, secretsYAML, nil)
+
+	entries, err := h.manager.DB().ListAudit(ctx, store.AuditFilter{Action: "secret.import"})
+	if err != nil {
+		t.Fatalf("ListAudit: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("%d import entries logged", len(entries))
+	}
+	if len(entries[0].Detail) > 200 {
+		t.Fatalf("the audit detail is %d bytes long", len(entries[0].Detail))
+	}
+
+	// And shortening the name must not change how the file was read: cutting
+	// a long name drops its extension, which would turn a secrets.yaml into an
+	// env file without a word.
+	secrets, _ := h.manager.DB().ListSecrets(ctx, vault.ID, store.DefaultEnvironment)
+	if len(secrets) != 2 {
+		t.Fatalf("%d secrets imported: the format was decided from the shortened name", len(secrets))
+	}
+}

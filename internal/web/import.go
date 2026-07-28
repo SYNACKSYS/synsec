@@ -72,20 +72,27 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The format is read from the name as sent. Deciding it from the shortened
+	// one below would drop the extension of a long name and silently parse a
+	// secrets.yaml as an env file.
 	format := strings.TrimSpace(r.FormValue("format"))
 	if format == "" {
 		format = importer.DetectFormat(header.Filename)
 	}
 
+	// The filename comes from the client. It is shown back and written to the
+	// log, so it is bounded rather than trusted to be reasonable.
+	filename := truncate(header.Filename, 120)
+
 	entries, err := importer.Parse(file, format)
 	if err != nil {
 		// The parser names the line and says what is wrong with it; passing
 		// that through verbatim is more use than any wording of mine.
-		s.redirectWithError(w, r, back, header.Filename+" : "+err.Error())
+		s.redirectWithError(w, r, back, filename+" : "+err.Error())
 		return
 	}
 	if len(entries) == 0 {
-		s.redirectWithError(w, r, back, header.Filename+" ne contient aucune entrée.")
+		s.redirectWithError(w, r, back, filename+" ne contient aucune entrée.")
 		return
 	}
 
@@ -118,7 +125,7 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		s.audit(r, store.AuditEntry{
 			ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 			Action: "secret.import", Target: vault.Name,
-			Detail: header.Filename + " : " + plural(written, "1 secret", itoa(written)+" secrets"),
+			Detail: filename + " : " + plural(written, "1 secret", itoa(written)+" secrets"),
 		})
 	}
 
@@ -132,7 +139,7 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		Imported: toImportRows(plan),
 		Written:  written,
 		Skipped:  plan.Skipped(),
-		Filename: header.Filename,
+		Filename: filename,
 		Role:     role,
 		CanWrite: true,
 	})

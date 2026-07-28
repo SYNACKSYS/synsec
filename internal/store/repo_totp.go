@@ -69,6 +69,19 @@ func (db *DB) ClearTOTP(ctx context.Context, userID string) error {
 	return db.SetTOTPSecret(ctx, userID, "", nil)
 }
 
+// ClearTOTPSecret drops the application secret and leaves the recovery codes
+// alone.
+//
+// For an account that also carries a security key: the codes are what reopens
+// it when the key is lost, so removing the application must not take them.
+func (db *DB) ClearTOTPSecret(ctx context.Context, userID string) error {
+	if _, err := db.ExecContext(ctx,
+		`UPDATE users SET totp_secret = '' WHERE id = ?`, userID); err != nil {
+		return fmt.Errorf("store: clearing the second factor of %q: %w", userID, err)
+	}
+	return nil
+}
+
 // UseRecoveryCode spends a code, reporting whether it was valid and unused.
 //
 // The update is the check: marking it used in one statement means two requests

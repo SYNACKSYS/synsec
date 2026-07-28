@@ -90,6 +90,13 @@ type pageData struct {
 	RecoveryCodes []string
 	RecoveryLeft  int
 
+	// SecurityKeys are the FIDO2 authenticators on this account. HasKeys and
+	// HasCode tell the verification page which of the two proofs to offer,
+	// which depends on what the account actually carries.
+	SecurityKeys []securityKeyRow
+	HasKeys      bool
+	HasCode      bool
+
 	// SourceURL and Version answer the licence notice: which build this is,
 	// and where its source can be fetched.
 	SourceURL string
@@ -203,6 +210,7 @@ func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	if err := r.ParseForm(); err != nil {
 		s.render(w, r, "login.html", http.StatusBadRequest, pageData{
 			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Formulaire illisible.",
@@ -265,28 +273,46 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	s.throttle.succeed(key)
 
-	// A password is one factor. When the account carries a second, no session
-	// is created yet: what has been proved so far is that someone knows a
-	// password, which is exactly the thing that leaks.
-	if secret, err := s.vault.DB().TOTPSecret(r.Context(), user.ID); err == nil && secret != "" {
-		s.startSecondFactor(w, r, user)
+	// A password is one factor. When the account carries a second - a code, a
+	// security key, or both - no session is created yet: what has been proved
+	// so far is that someone knows a password, which is exactly the thing that
+	// leaks.
+	hasCode, keys, err := s.secondFactors(r.Context(), user.ID)
+	if err != nil {
+		logError(r, err)
+	}
+	if hasCode || keys > 0 {
+		s.startSecondFactor(w, r, user, hasCode, keys > 0)
 		return
 	}
 
 	s.completeSignIn(w, r, user)
 }
 
-// completeSignIn creates the session once every factor has been satisfied.
+// completeSignIn creates the session once every factor has been satisfied and
+// sends the browser home.
 func (s *Server) completeSignIn(w http.ResponseWriter, r *http.Request, user store.User) {
-	now := s.now()
-
-	token, hash, err := auth.NewSessionToken()
-	if err != nil {
+	if err := s.establishSession(w, r, user); err != nil {
 		logError(r, err)
 		s.render(w, r, "login.html", http.StatusInternalServerError, pageData{
 			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Erreur interne.",
 		})
 		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// establishSession does the work of signing in, without deciding what the
+// browser is told next.
+//
+// Split out because the security key finishes over a scripted request, where a
+// redirect would be followed invisibly rather than shown.
+func (s *Server) establishSession(w http.ResponseWriter, r *http.Request, user store.User) error {
+	now := s.now()
+
+	token, hash, err := auth.NewSessionToken()
+	if err != nil {
+		return err
 	}
 
 	expiry := auth.SessionExpiryWith(s.sessionIdle, now, now)
@@ -297,11 +323,7 @@ func (s *Server) completeSignIn(w http.ResponseWriter, r *http.Request, user sto
 		IP:        s.clientIP(r),
 	}
 	if err := s.vault.DB().CreateSession(r.Context(), &session, hash); err != nil {
-		logError(r, err)
-		s.render(w, r, "login.html", http.StatusInternalServerError, pageData{
-			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Erreur interne.",
-		})
-		return
+		return err
 	}
 
 	if err := s.vault.DB().TouchUserLogin(r.Context(), user.ID, now); err != nil {
@@ -313,7 +335,7 @@ func (s *Server) completeSignIn(w http.ResponseWriter, r *http.Request, user sto
 	})
 
 	s.setSessionCookie(w, token, expiry)
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
 }
 
 // verify checks a username and password.
@@ -488,6 +510,16 @@ type auditChoice struct {
 	Value   string
 	Label   string
 	Current bool
+}
+
+// securityKeyRow is one registered authenticator. It carries no key material:
+// the page names the object and says when it was last used, and that is all
+// anyone needs to decide whether to keep it.
+type securityKeyRow struct {
+	ID         string
+	Name       string
+	CreatedAt  time.Time
+	LastUsedAt time.Time
 }
 
 // networkRow is one address a secret is pinned to.

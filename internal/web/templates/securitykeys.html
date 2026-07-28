@@ -1,0 +1,118 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Clé de sécurité</h1>
+    <p class="subtitle">
+      Un objet à toucher au lieu d'un code à recopier. Ce qu'il signe contient
+      l'adresse du serveur : une page qui imite SYNSEC n'en tire rien, là où un
+      code tapé sur cette page lui aurait été donné.
+    </p>
+  </div>
+</div>
+
+<p class="alert alert-danger" data-webauthn-error hidden></p>
+
+{{if .SecurityKeys}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Clé</th><th>Ajoutée le</th><th>Dernière utilisation</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .SecurityKeys}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td class="when">{{date .CreatedAt}}</td>
+        <td class="when">{{date .LastUsedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <p class="help">
+      Aucune clé enregistrée. Ton mot de passe reste la seule preuve, sauf si
+      tu as activé <a href="/parametres/verification">la vérification par
+      code</a>.
+    </p>
+  </div>
+</div>
+{{end}}
+
+<div class="page-head section">
+  <div><h1>Ajouter une clé</h1></div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <p class="help" data-webauthn-unsupported hidden>
+      Ce navigateur ne propose pas de clé de sécurité, ou la page n'est pas
+      servie de façon sécurisée. Une clé exige HTTPS et un nom de machine :
+      depuis une adresse IP, le navigateur refuse d'en enregistrer une.
+    </p>
+
+    <form data-webauthn="register">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="nom">Nom de la clé</label>
+        <input id="nom" name="nom" type="text" maxlength="60"
+               placeholder="YubiKey bleue, Windows Hello du portable...">
+        <p class="help">
+          Pour t'y retrouver le jour où tu en as trois et que tu veux en
+          retirer une.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer une clé</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{{if .SecurityKeys}}
+<div class="page-head section">
+  <div><h1>Retirer une clé</h1></div>
+</div>
+
+<div class="card card-narrow card-danger">
+  <div class="card-body">
+    <form method="post" action="/parametres/cles/retirer"
+          data-confirm="Retirer cette clé ? Elle ne pourra plus ouvrir ce compte.">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="id">Clé</label>
+        <select id="id" name="id">
+          {{range .SecurityKeys}}<option value="{{.ID}}">{{.Name}}</option>{{end}}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="password">Ton mot de passe</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" required>
+        <p class="help">
+          Redemandé ici parce qu'un navigateur laissé ouvert est exactement la
+          situation que la clé existe pour absorber.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">Retirer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{end}}
+
+<p class="hint">
+  Enregistres-en deux si tu peux, et range la seconde ailleurs. Sinon, ce sont
+  tes codes de secours qui rouvrent le compte le jour où la clé disparaît.
+</p>
+{{end}}

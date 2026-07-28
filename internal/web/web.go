@@ -47,6 +47,7 @@ var pageNames = []string{
 	"own_password.html",
 	"twofactor_settings.html",
 	"twofactor_codes.html",
+	"securitykeys.html",
 	"audit.html",
 	"audit_access.html",
 	"settings.html",
@@ -78,6 +79,12 @@ type Server struct {
 	// code. Made at start-up and never stored: a restart cancels the sign-ins
 	// in progress, which costs one password re-entry and leaves no key on disk.
 	pendingKey []byte
+
+	// challenges holds the security key ceremonies in flight, and freshCodes
+	// the recovery codes waiting to be shown once. Both are in memory: a
+	// restart cancels a ceremony, which costs one retry.
+	challenges *challengeStore
+	freshCodes *codeStash
 
 	throttle *throttle
 }
@@ -126,6 +133,8 @@ func New(v *vault.Manager, opts ...Option) (*Server, error) {
 		secureCookies: true,
 		sessionIdle:   auth.SessionIdle,
 		throttle:      newThrottle(),
+		challenges:    newChallengeStore(),
+		freshCodes:    newCodeStash(),
 	}
 	s.clients, _ = clientip.New(nil)
 
@@ -191,6 +200,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /login", s.showLogin)
 	mux.HandleFunc("POST /login", s.doLogin)
 	mux.HandleFunc("POST /login/code", s.finishSecondFactor)
+	// The security key half of the same step. Scripted rather than a form: the
+	// browser has to talk to the key between the two requests.
+	mux.HandleFunc("POST /login/cle/defi", s.startKeyAssertion)
+	mux.HandleFunc("POST /login/cle", s.finishKeyAssertion)
 	mux.HandleFunc("POST /logout", s.requireLogin(s.doLogout))
 
 	mux.HandleFunc("GET /{$}", s.requireLogin(s.showHome))
@@ -228,6 +241,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /parametres/verification", s.requireLogin(s.showTwoFactorSettings))
 	mux.HandleFunc("POST /parametres/verification", s.requireLogin(s.enableTwoFactor))
 	mux.HandleFunc("POST /parametres/verification/desactiver", s.requireLogin(s.disableTwoFactor))
+	mux.HandleFunc("GET /parametres/cles", s.requireLogin(s.showSecurityKeys))
+	mux.HandleFunc("POST /parametres/cles/defi", s.requireLogin(s.startKeyRegistration))
+	mux.HandleFunc("POST /parametres/cles", s.requireLogin(s.finishKeyRegistration))
+	mux.HandleFunc("POST /parametres/cles/retirer", s.requireLogin(s.removeSecurityKey))
+	mux.HandleFunc("GET /parametres/secours", s.requireLogin(s.showFreshRecoveryCodes))
 
 	mux.HandleFunc("GET /comptes", s.requireAdmin(s.showAccounts))
 	mux.HandleFunc("POST /comptes", s.requireAdmin(s.createAccount))

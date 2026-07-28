@@ -68,8 +68,11 @@ func mustInt(s string) int64 {
 	return n
 }
 
-// startSecondFactor parks a sign-in that still owes a code.
-func (s *Server) startSecondFactor(w http.ResponseWriter, r *http.Request, user store.User) {
+// startSecondFactor parks a sign-in that still owes a proof.
+//
+// Which proof is offered follows what the account carries: a code, a key, or
+// the choice of both.
+func (s *Server) startSecondFactor(w http.ResponseWriter, r *http.Request, user store.User, hasCode, hasKeys bool) {
 	expiry := s.now().Add(pendingLife)
 	http.SetCookie(w, &http.Cookie{
 		Name:     pendingCookie,
@@ -82,18 +85,43 @@ func (s *Server) startSecondFactor(w http.ResponseWriter, r *http.Request, user 
 	})
 
 	s.render(w, r, "twofactor.html", http.StatusOK, pageData{
-		Title: "Vérification",
-		CSRF:  s.issueLoginToken(w),
+		Title:   "Vérification",
+		CSRF:    s.issueLoginToken(w),
+		HasCode: hasCode,
+		HasKeys: hasKeys,
 	})
+}
+
+// retrySecondFactor draws the verification page again after a refusal, with
+// the same choice of proofs the account actually has.
+func (s *Server) retrySecondFactor(w http.ResponseWriter, r *http.Request, status int, message string) {
+	data := pageData{
+		Title: "Vérification", CSRF: s.issueLoginToken(w), Error: message,
+		HasCode: true,
+	}
+
+	// The pending cookie says whose sign-in this is, so the page can be redrawn
+	// as it was. A cookie that no longer resolves leaves the code field, which
+	// is the form the message is about.
+	if cookie, err := r.Cookie(pendingCookie); err == nil && cookie.Value != "" {
+		if userID, ok := s.readPendingToken(cookie.Value, s.now()); ok {
+			hasCode, keys, err := s.secondFactors(r.Context(), userID)
+			if err != nil {
+				logError(r, err)
+			} else {
+				data.HasCode, data.HasKeys = hasCode, keys > 0
+			}
+		}
+	}
+	s.render(w, r, "twofactor.html", status, data)
 }
 
 // finishSecondFactor checks the code and, if it holds, signs the person in.
 func (s *Server) finishSecondFactor(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	if err := r.ParseForm(); err != nil || !validLoginToken(r) {
-		s.render(w, r, "twofactor.html", http.StatusForbidden, pageData{
-			Title: "Vérification", CSRF: s.issueLoginToken(w),
-			Error: "Ce formulaire n'est plus valable. Recommence la connexion.",
-		})
+		s.retrySecondFactor(w, r, http.StatusForbidden,
+			"Ce formulaire n'est plus valable. Recommence la connexion.")
 		return
 	}
 
@@ -113,10 +141,8 @@ func (s *Server) finishSecondFactor(w http.ResponseWriter, r *http.Request) {
 	// and thirty seconds. The same throttle as the password guards them.
 	key := s.clientIP(r)
 	if wait, blocked := s.throttle.blocked(key, s.now()); blocked {
-		s.render(w, r, "twofactor.html", http.StatusTooManyRequests, pageData{
-			Title: "Vérification", CSRF: s.issueLoginToken(w),
-			Error: "Trop de tentatives. Réessaie dans " + humanDuration(wait) + ".",
-		})
+		s.retrySecondFactor(w, r, http.StatusTooManyRequests,
+			"Trop de tentatives. Réessaie dans "+humanDuration(wait)+".")
 		return
 	}
 
@@ -134,10 +160,7 @@ func (s *Server) finishSecondFactor(w http.ResponseWriter, r *http.Request) {
 			ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 			Action: "auth.failed", Detail: "code de vérification incorrect",
 		})
-		s.render(w, r, "twofactor.html", http.StatusUnauthorized, pageData{
-			Title: "Vérification", CSRF: s.issueLoginToken(w),
-			Error: "Code incorrect.",
-		})
+		s.retrySecondFactor(w, r, http.StatusUnauthorized, "Code incorrect.")
 		return
 	}
 
@@ -150,13 +173,17 @@ func (s *Server) finishSecondFactor(w http.ResponseWriter, r *http.Request) {
 // one-time recovery codes.
 func (s *Server) acceptSecondFactor(r *http.Request, user store.User, code string) bool {
 	secret, err := s.vault.DB().TOTPSecret(r.Context(), user.ID)
-	if err != nil || secret == "" {
+	if err != nil {
+		logError(r, err)
 		return false
 	}
-	if auth.VerifyTOTP(secret, code, s.now()) {
+	if secret != "" && auth.VerifyTOTP(secret, code, s.now()) {
 		return true
 	}
-
+	// The recovery codes are checked even when no application is enrolled: an
+	// account whose only factor is a security key still has them, and they are
+	// the way back in when the key is lost.
+	//
 	// A recovery code is spent by the check itself, so two requests racing on
 	// the same one cannot both succeed.
 	used, err := s.vault.DB().UseRecoveryCode(r.Context(), user.ID, normaliseRecovery(code), s.now())
@@ -335,7 +362,20 @@ func (s *Server) disableTwoFactor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.vault.DB().ClearTOTP(r.Context(), user.ID); err != nil {
+	// A security key left on the account means the second factor is not being
+	// turned off, only this half of it - and the recovery codes still have a
+	// job to do.
+	keys, err := s.vault.DB().CountSecurityKeys(r.Context(), user.ID)
+	if err != nil {
+		s.fail(w, r, user, err)
+		return
+	}
+	if keys > 0 {
+		err = s.vault.DB().ClearTOTPSecret(r.Context(), user.ID)
+	} else {
+		err = s.vault.DB().ClearTOTP(r.Context(), user.ID)
+	}
+	if err != nil {
 		s.fail(w, r, user, err)
 		return
 	}
@@ -344,6 +384,11 @@ func (s *Server) disableTwoFactor(w http.ResponseWriter, r *http.Request) {
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "auth.2fa.disable", Target: user.Username,
 	})
+	if keys > 0 {
+		s.redirectWithNotice(w, r, back,
+			"Application retirée. "+plural(keys, "Ta clé de sécurité protège", "Tes clés de sécurité protègent")+" toujours ce compte.")
+		return
+	}
 	s.redirectWithNotice(w, r, back,
 		"Vérification en deux étapes désactivée. Ton mot de passe redevient la seule preuve.")
 }

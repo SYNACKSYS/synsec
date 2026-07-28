@@ -893,3 +893,31 @@ h2.stacked { margin-top: 1.5rem; }
   letter-spacing: .4rem;
   text-align: center;
 }
+
+/* "ou", between the two proofs offered at sign-in. A rule on each side rather
+   than a bare word: the two forms it separates are alternatives, not steps. */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 1.25rem 0;
+  color: var(--text-muted);
+  font-size: .8125rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.separator::before,
+.separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* The verification page carries a form that is submitted by script, so its
+   button spends a moment disabled while the browser waits for the key. */
+.btn[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}

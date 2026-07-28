@@ -141,6 +141,18 @@ func csrfToken(sessionToken string) string {
 // read at all before the request has proved it belongs to a session.
 const maxRequestBytes = 2 << 20
 
+// maxLoginBytes caps a body on the routes that run before a session exists.
+//
+// A form there is a few hundred bytes and a security key's answer a few
+// thousand. Without a cap, an unauthenticated caller could hand the server a
+// body of any size and have it read in full - which is a way to exhaust a
+// small machine that costs the caller nothing.
+const maxLoginBytes = 64 << 10
+
+func limitBody(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxLoginBytes)
+}
+
 func validCSRF(w http.ResponseWriter, r *http.Request, sessionToken string) bool {
 	// w is passed so that an oversized body closes the connection rather than
 	// leaving the server trying to keep it alive.

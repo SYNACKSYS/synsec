@@ -20,6 +20,8 @@ MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
   les appareils.
 - **Chacun ne voit que ce qui lui appartient** ou ce qu'on lui a partagé -
   l'administrateur du serveur compris.
+- **Second facteur au choix** : un code à six chiffres, ou une clé FIDO2 -
+  YubiKey, SoloKey, Windows Hello, Touch ID. Les deux si tu veux.
 - **Démarrage automatique** en service Windows ou unité systemd, sans que
   personne ait à saisir quoi que ce soit après une coupure de courant.
 

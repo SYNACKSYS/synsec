@@ -259,6 +259,40 @@ freinage par adresse ne couvre pas ce cas : il suffit de changer d'IP.
 Dix codes de secours sont affichés une fois à l'activation. Range-les ailleurs
 que sur le téléphone qui porte l'application.
 
+### Ou une clé de sécurité
+
+**Paramètres / Clé de sécurité.** Une YubiKey, une SoloKey, Windows Hello, une
+Touch ID : tout ce qui parle FIDO2. Branche, touche, c'est fait.
+
+Une clé n'est pas seulement plus commode qu'un code, elle est plus solide sur
+un point précis. Ce qu'elle signe contient l'adresse du serveur. Une page qui
+imite SYNSEC pour récolter des identifiants n'obtient rien d'une clé, là où un
+code à six chiffres tapé sur cette page lui aurait été donné - et six chiffres
+restent valables trente secondes, ce qui suffit largement.
+
+Trois algorithmes sont acceptés, ce qui couvre tout ce qui se vend : ES256 sur
+les clés FIDO2, RS256 sur les Windows Hello adossés à un TPM plus ancien, et
+Ed25519. L'attestation - la preuve de marque et de modèle - n'est ni demandée
+ni vérifiée : elle répond à « quelle est cette clé », pas à « cette clé est-elle
+la tienne », et celui qui l'enregistre est déjà connecté.
+
+Deux limites à connaître :
+
+- **Il faut un nom de machine.** Le navigateur refuse d'enregistrer une clé sur
+  une adresse IP. `https://synsec.maison:8787` fonctionne, `https://192.168.1.20:8787`
+  non. Une ligne dans le fichier `hosts`, ou une entrée sur le routeur, suffit.
+- **Une clé est liée à ce nom.** Enregistrée depuis `synsec.maison`, elle ne
+  répondra pas à `synsec` tout court. Choisis un nom et tiens-t'y, ou enregistre
+  une clé par nom.
+
+Plusieurs clés peuvent cohabiter, avec ou sans l'application. Enregistres-en
+deux si tu peux, et range la seconde ailleurs.
+
+Enregistrer la première clé d'un compte génère les codes de secours si le compte
+n'en a pas : sans eux, perdre l'objet ferme le compte définitivement. Retirer
+l'application d'un compte qui garde une clé conserve ces codes, pour la même
+raison.
+
 ### Borner le journal
 
 Chaque échec de connexion écrit une ligne. Sur un serveur exposé, un disque

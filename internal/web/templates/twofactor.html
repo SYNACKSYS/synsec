@@ -8,7 +8,25 @@
   <div class="card">
     <div class="card-body">
       {{if .Error}}<p class="alert alert-danger">{{.Error}}</p>{{end}}
+      <p class="alert alert-danger" data-webauthn-error hidden></p>
 
+      {{if .HasKeys}}
+      <form data-webauthn="login">
+        <input type="hidden" name="login_csrf" value="{{.CSRF}}">
+        <button type="submit" class="btn btn-primary btn-block">
+          Utiliser ma clé de sécurité
+        </button>
+        <p class="help">
+          Branche la clé et touche-la, ou approche-la du téléphone.
+        </p>
+      </form>
+      {{end}}
+
+      {{if and .HasKeys .HasCode}}
+      <p class="separator">ou</p>
+      {{end}}
+
+      {{if .HasCode}}
       <form method="post" action="/login/code">
         <input type="hidden" name="login_csrf" value="{{.CSRF}}">
 
@@ -25,6 +43,23 @@
 
         <button type="submit" class="btn btn-primary btn-block">Valider</button>
       </form>
+      {{else}}
+      {{/* Only a key on this account. The codes of last resort still work, and
+           this is the page where somebody who has lost the key needs to find
+           them. */}}
+      <details class="fallback">
+        <summary>J'ai perdu ma clé</summary>
+        <form method="post" action="/login/code">
+          <input type="hidden" name="login_csrf" value="{{.CSRF}}">
+          <div class="field">
+            <label for="code">Code de secours</label>
+            <input id="code" name="code" type="text" autocomplete="one-time-code"
+                   required placeholder="abcde-fghij">
+          </div>
+          <button type="submit" class="btn btn-secondary btn-block">Valider</button>
+        </form>
+      </details>
+      {{end}}
     </div>
   </div>
 

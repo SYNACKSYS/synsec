@@ -76,6 +76,11 @@ type pageData struct {
 	// Theme is the palette this account chose; Themes are the ones offered.
 	Theme  string
 	Themes []themeRow
+	// DefaultScale and DefaultTheme are what the page falls back to. The
+	// appearance form carries them so its live preview knows which values are
+	// written into the page and which are simply absent from it.
+	DefaultScale int
+	DefaultTheme string
 
 	// SessionIdle is the server's inactivity timeout, in words. Shown rather
 	// than offered: it is the operator's setting, not a preference.

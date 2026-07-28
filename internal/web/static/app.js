@@ -198,3 +198,53 @@ function fold(text) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 }
+
+// Try an appearance before keeping it.
+//
+// The size and the palette both ride on one class on the root element, and
+// that class is written by the server on every page. So a preview is nothing
+// more than editing it here: navigate away without saving and the next page
+// arrives with the stored choice, unchanged. Nothing is written anywhere until
+// the form is submitted.
+document.addEventListener("DOMContentLoaded", function () {
+  var form = document.querySelector("[data-appearance]");
+  if (!form) {
+    return;
+  }
+
+  var root = document.documentElement;
+  var scale = form.querySelector("[name=scale]");
+  var theme = form.querySelector("[name=theme]");
+  var saved = root.className;
+
+  function preview() {
+    // Only the two families this form owns are touched, so a class put there
+    // by anything else survives.
+    Array.prototype.slice.call(root.classList).forEach(function (name) {
+      if (/^(scale|theme)-/.test(name)) {
+        root.classList.remove(name);
+      }
+    });
+
+    // A value equal to the default is absent from the page rather than written
+    // out, which is what the server does too.
+    if (scale && scale.value !== form.dataset.defaultScale) {
+      root.classList.add("scale-" + scale.value);
+    }
+    if (theme && theme.value !== form.dataset.defaultTheme) {
+      root.classList.add("theme-" + theme.value);
+    }
+  }
+
+  [scale, theme].forEach(function (field) {
+    if (field) {
+      field.addEventListener("change", preview);
+    }
+  });
+
+  // Put the saved appearance back before the page is stored for the back
+  // button, so returning to it does not restore a preview nobody kept.
+  window.addEventListener("pagehide", function () {
+    root.className = saved;
+  });
+});

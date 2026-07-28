@@ -135,3 +135,21 @@ func TestSavingTheSizeAloneKeepsThePalette(t *testing.T) {
 		t.Fatal("saving the size alone reset the palette")
 	}
 }
+
+// The form carries what the preview needs: the two defaults, so the script
+// knows which values the server writes into the page and which it leaves out.
+func TestTheAppearanceFormCarriesItsDefaults(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	page := body(t, h.get(t, "/parametres"))
+	for _, want := range []string{
+		"data-appearance",
+		`data-default-scale="100"`,
+		`data-default-theme="ardoise"`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the appearance form carries no %s", want)
+		}
+	}
+}

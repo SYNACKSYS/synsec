@@ -21,7 +21,8 @@
 
 <div class="card card-narrow">
   <div class="card-body">
-    <form method="post" action="/parametres/apparence">
+    <form method="post" action="/parametres/apparence" data-appearance
+          data-default-scale="{{.DefaultScale}}" data-default-theme="{{.DefaultTheme}}">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
 
       <div class="field">
@@ -50,6 +51,11 @@
           {{end}}
         </ul>
       </div>
+
+      <p class="help" data-needs-js hidden>
+        Chaque choix s'applique tout de suite, pour que tu le voies avant de le
+        garder. Quitte la page sans enregistrer et tout revient comme avant.
+      </p>
 
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Enregistrer</button>

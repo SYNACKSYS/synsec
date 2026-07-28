@@ -77,16 +77,18 @@ func (s *Server) showSettings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.render(w, r, "settings.html", http.StatusOK, pageData{
-		Title:       "Paramètres",
-		Nav:         "parametres",
-		User:        &user,
-		CSRF:        csrfFrom(r),
-		Sealed:      s.vault.Sealed(),
-		Scales:      rows,
-		Themes:      themes,
-		SessionIdle: humanDuration(s.sessionIdle),
-		Notice:      r.URL.Query().Get("info"),
-		Error:       r.URL.Query().Get("erreur"),
+		Title:        "Paramètres",
+		Nav:          "parametres",
+		User:         &user,
+		CSRF:         csrfFrom(r),
+		Sealed:       s.vault.Sealed(),
+		Scales:       rows,
+		Themes:       themes,
+		DefaultScale: defaultScale,
+		DefaultTheme: defaultTheme,
+		SessionIdle:  humanDuration(s.sessionIdle),
+		Notice:       r.URL.Query().Get("info"),
+		Error:        r.URL.Query().Get("erreur"),
 	})
 }
 

@@ -13,14 +13,28 @@
       que sous forme d'empreinte - perdu, il se remplace, il ne se retrouve pas.
     </p>
 
-    <pre class="token">{{.NewToken}}</pre>
+    <pre class="token" id="jeton">{{.NewToken}}</pre>
+    {{/* Hidden until the script runs, so the page never offers a button that
+         cannot do anything. */}}
+    <div class="value-actions" data-needs-js hidden>
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-copy="#jeton">Copier le jeton</button>
+    </div>
 
     <p class="help">Pour vérifier qu'il fonctionne :</p>
-    <pre class="snippet">curl -H "Authorization: Bearer {{.NewToken}}" \
+    <pre class="snippet" id="essai">curl -H "Authorization: Bearer {{.NewToken}}" \
      "https://{{.Host}}/api/v1/secrets"</pre>
+    <div class="value-actions" data-needs-js hidden>
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-copy="#essai">Copier la commande</button>
+    </div>
 
     <p class="help">Home Assistant, dans <code>secrets.yaml</code> :</p>
-    <pre class="snippet">synsec_token: "Bearer {{.NewToken}}"</pre>
+    <pre class="snippet" id="ligne-ha">synsec_token: "Bearer {{.NewToken}}"</pre>
+    <div class="value-actions" data-needs-js hidden>
+      <button type="button" class="btn btn-secondary btn-sm"
+              data-copy="#ligne-ha">Copier la ligne</button>
+    </div>
   </div>
 </div>
 {{end}}

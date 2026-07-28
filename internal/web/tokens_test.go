@@ -289,3 +289,25 @@ func TestScopeRefusesWhatIsNotInTheVault(t *testing.T) {
 		t.Fatalf("a refused scope was stored: %v", tok.Secrets)
 	}
 }
+
+// A token is shown exactly once. Making it easy to copy is the difference
+// between a device that works and a token nobody can produce again.
+func TestAFreshTokenCanBeCopied(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.post(t, "/coffres/"+vault.ID+"/appareils", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"Home Assistant"},
+	})
+	page := body(t, resp)
+
+	for _, want := range []string{`data-copy="#jeton"`, `data-copy="#essai"`, `data-copy="#ligne-ha"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("the page showing a new token carries no %s", want)
+		}
+	}
+	if !strings.Contains(page, "data-needs-js hidden") {
+		t.Error("the copy controls are not hidden before the script runs")
+	}
+}

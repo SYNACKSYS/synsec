@@ -1,0 +1,33 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-head">
+    <div class="mark">SYNSEC</div>
+    <p>Vérification en deux étapes</p>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      {{if .Error}}<p class="alert alert-danger">{{.Error}}</p>{{end}}
+
+      <form method="post" action="/login/code">
+        <input type="hidden" name="login_csrf" value="{{.CSRF}}">
+
+        <div class="field">
+          <label for="code">Code de ton application</label>
+          <input id="code" name="code" type="text" inputmode="numeric"
+                 autocomplete="one-time-code" autofocus required
+                 placeholder="123456">
+          <p class="help">
+            Six chiffres, renouvelés toutes les trente secondes. Tu peux aussi
+            saisir un de tes codes de secours.
+          </p>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Valider</button>
+      </form>
+    </div>
+  </div>
+
+  <p class="hint"><a href="/login">Recommencer la connexion</a></p>
+</div>
+{{end}}

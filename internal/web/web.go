@@ -8,6 +8,7 @@ package web
 
 import (
 	"bytes"
+	"crypto/rand"
 	"embed"
 	"fmt"
 	"html/template"
@@ -17,6 +18,8 @@ import (
 	"time"
 
 	"synsec/internal/auth"
+	"synsec/internal/clientip"
+	"synsec/internal/store"
 	"synsec/internal/vault"
 )
 
@@ -26,6 +29,7 @@ var assets embed.FS
 // pageNames are the templates rendered inside the shared layout.
 var pageNames = []string{
 	"login.html",
+	"twofactor.html",
 	"source.html",
 	"home.html",
 	"message.html",
@@ -41,6 +45,8 @@ var pageNames = []string{
 	"accounts.html",
 	"password.html",
 	"own_password.html",
+	"twofactor_settings.html",
+	"twofactor_codes.html",
 	"audit.html",
 	"audit_access.html",
 	"settings.html",
@@ -63,7 +69,32 @@ type Server struct {
 	// than read from the package constant so the operator can set it.
 	sessionIdle time.Duration
 
+	// clients decides which address a request came from, and allow restricts
+	// which of them may reach the interface at all.
+	clients *clientip.Resolver
+	allow   []string
+
+	// pendingKey signs a sign-in that has passed the password and still owes a
+	// code. Made at start-up and never stored: a restart cancels the sign-ins
+	// in progress, which costs one password re-entry and leaves no key on disk.
+	pendingKey []byte
+
 	throttle *throttle
+}
+
+// TrustProxies believes X-Forwarded-For from the named addresses only.
+func TrustProxies(r *clientip.Resolver) Option {
+	return func(s *Server) { s.clients = r }
+}
+
+// RestrictTo refuses the interface to any address outside the list. Empty
+// means anywhere.
+//
+// The API has per-token allowlists; the browser had nothing. On a server
+// anyone can reach, this is the cheapest thing that turns a password guess
+// into a packet that never arrives.
+func RestrictTo(entries []string) Option {
+	return func(s *Server) { s.allow = entries }
 }
 
 // WithSessionIdle sets how long a browser may sit untouched before being
@@ -95,6 +126,12 @@ func New(v *vault.Manager, opts ...Option) (*Server, error) {
 		secureCookies: true,
 		sessionIdle:   auth.SessionIdle,
 		throttle:      newThrottle(),
+	}
+	s.clients, _ = clientip.New(nil)
+
+	s.pendingKey = make([]byte, 32)
+	if _, err := rand.Read(s.pendingKey); err != nil {
+		return nil, fmt.Errorf("web: generating the sign-in key: %w", err)
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -153,6 +190,7 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /login", s.showLogin)
 	mux.HandleFunc("POST /login", s.doLogin)
+	mux.HandleFunc("POST /login/code", s.finishSecondFactor)
 	mux.HandleFunc("POST /logout", s.requireLogin(s.doLogout))
 
 	mux.HandleFunc("GET /{$}", s.requireLogin(s.showHome))
@@ -187,6 +225,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /parametres/apparence", s.requireLogin(s.saveAppearance))
 	mux.HandleFunc("GET /parametres/motdepasse", s.requireLogin(s.showOwnPassword))
 	mux.HandleFunc("POST /parametres/motdepasse", s.requireLogin(s.changeOwnPassword))
+	mux.HandleFunc("GET /parametres/verification", s.requireLogin(s.showTwoFactorSettings))
+	mux.HandleFunc("POST /parametres/verification", s.requireLogin(s.enableTwoFactor))
+	mux.HandleFunc("POST /parametres/verification/desactiver", s.requireLogin(s.disableTwoFactor))
 
 	mux.HandleFunc("GET /comptes", s.requireAdmin(s.showAccounts))
 	mux.HandleFunc("POST /comptes", s.requireAdmin(s.createAccount))
@@ -205,7 +246,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /coffres/{id}/partages", s.requireLogin(s.addShare))
 	mux.HandleFunc("POST /coffres/{id}/partages/retirer", s.requireLogin(s.removeShare))
 
-	return securityHeaders(mux)
+	return s.restrict(securityHeaders(mux))
 }
 
 func (s *Server) staticHandler() http.Handler {
@@ -250,6 +291,24 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	buf.WriteTo(w)
+}
+
+// restrict refuses the whole interface to addresses outside the allowlist.
+//
+// Before routing and before any session lookup: an address that has no
+// business here should not reach the sign-in form, let alone spend a password
+// derivation.
+func (s *Server) restrict(next http.Handler) http.Handler {
+	if len(s.allow) == 0 {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !store.AddressAllowed(s.allow, s.clients.From(r)) {
+			http.Error(w, "interdit", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // securityHeaders sets what matters for a page that displays secrets.

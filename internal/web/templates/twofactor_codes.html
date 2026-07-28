@@ -1,0 +1,33 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Codes de secours</h1>
+    <p class="subtitle">
+      Vérification en deux étapes activée. Voici tes codes de secours.
+    </p>
+  </div>
+</div>
+
+<div class="card reveal">
+  <div class="card-body">
+    <p class="alert alert-danger">
+      <strong>Imprime-les ou range-les maintenant.</strong> Ils ne seront plus
+      jamais affichés, et ce sont eux qui rouvrent ton compte le jour où tu
+      perds ton téléphone.
+    </p>
+
+    <pre class="token">
+{{range .RecoveryCodes}}{{.}}
+{{end}}</pre>
+
+    <p class="help">
+      Chacun ne sert qu'une fois. Range-les ailleurs que sur le téléphone qui
+      porte l'application, sans quoi les perdre tous les deux revient au même.
+    </p>
+  </div>
+</div>
+
+<div class="form-actions">
+  <a class="btn btn-primary" href="/parametres/verification">J'ai mis les codes à l'abri</a>
+</div>
+{{end}}

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"synsec/internal/auth"
@@ -19,11 +20,14 @@ const DefaultPort = "8787"
 // Environment variables that override the defaults, for people running SYNSEC
 // in a container or from a service unit.
 const (
-	EnvDataDir     = "SYNSEC_DATA_DIR"
-	EnvListen      = "SYNSEC_LISTEN"
-	EnvSessionIdle = "SYNSEC_SESSION_IDLE"
-	EnvTLSCert     = "SYNSEC_TLS_CERT"
-	EnvTLSKey      = "SYNSEC_TLS_KEY"
+	EnvDataDir        = "SYNSEC_DATA_DIR"
+	EnvListen         = "SYNSEC_LISTEN"
+	EnvSessionIdle    = "SYNSEC_SESSION_IDLE"
+	EnvTLSCert        = "SYNSEC_TLS_CERT"
+	EnvTLSKey         = "SYNSEC_TLS_KEY"
+	EnvAuditRetain    = "SYNSEC_AUDIT_RETAIN"
+	EnvTrustedProxies = "SYNSEC_TRUSTED_PROXIES"
+	EnvWebAllow       = "SYNSEC_WEB_ALLOW"
 )
 
 // Config is the resolved runtime configuration.
@@ -54,6 +58,22 @@ type Config struct {
 	// signs it out. Activity pushes it back, so it only ever catches a tab
 	// nobody is using.
 	SessionIdle time.Duration
+
+	// AuditRetain is how long audit entries are kept. Zero keeps them for
+	// ever, which is the right default for a household: nobody wants to find
+	// that the trace of an intrusion aged out. Set it on a server anyone can
+	// reach, where failed sign-ins would otherwise fill the disk.
+	AuditRetain time.Duration
+
+	// TrustedProxies are the addresses whose X-Forwarded-For is believed.
+	// Empty means the header is ignored, which is right for a server reached
+	// directly and wrong behind a reverse proxy.
+	TrustedProxies []string
+
+	// WebAllow restricts the browser interface to a set of addresses. Empty
+	// means anywhere, which is right on a home network and is the single
+	// cheapest mitigation for a server anyone can reach.
+	WebAllow []string
 }
 
 // Default returns the configuration before any flag is applied.
@@ -64,7 +84,21 @@ func Default() Config {
 		SessionIdle: envDuration(EnvSessionIdle, auth.SessionIdle),
 		TLSCert:     os.Getenv(EnvTLSCert),
 		TLSKey:      os.Getenv(EnvTLSKey),
+		AuditRetain: envPlainDuration(EnvAuditRetain),
+
+		TrustedProxies: envList(EnvTrustedProxies),
+		WebAllow:       envList(EnvWebAllow),
 	}
+}
+
+// envPlainDuration reads a duration with no clamping and no default. An
+// unreadable or negative value means "no limit".
+func envPlainDuration(key string) time.Duration {
+	d, err := time.ParseDuration(os.Getenv(key))
+	if err != nil || d < 0 {
+		return 0
+	}
+	return d
 }
 
 // envDuration reads a Go duration such as 30m or 8h.
@@ -144,6 +178,22 @@ func (c Config) Validate() error {
 		return fmt.Errorf("config: a certificate and its key must be given together")
 	}
 	return nil
+}
+
+// envList reads a comma-separated list.
+func envList(key string) []string {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func envOr(key, fallback string) string {

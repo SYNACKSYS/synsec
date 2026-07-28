@@ -2,7 +2,6 @@ package api
 
 import (
 	"log"
-	"net"
 	"net/http"
 	"strings"
 
@@ -103,27 +102,8 @@ func bearerToken(r *http.Request) (string, bool) {
 }
 
 // clientIP returns the address to enforce allowlists against.
-//
-// X-Forwarded-For is only consulted when the operator has explicitly said a
-// trusted proxy sits in front. Otherwise any caller could grant itself any
-// address simply by setting the header.
 func (s *Server) clientIP(r *http.Request) string {
-	if s.trustProxyHeaders {
-		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-			// The left-most entry is the original client; the rest were added
-			// by the hops in between.
-			if first, _, found := strings.Cut(fwd, ","); found {
-				return strings.TrimSpace(first)
-			}
-			return strings.TrimSpace(fwd)
-		}
-	}
-
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+	return s.clients.From(r)
 }
 
 // audit appends an entry, filling in the client address. Failures are logged

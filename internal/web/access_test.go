@@ -32,18 +32,24 @@ func (h *harness) addUser(t *testing.T, username string) store.User {
 
 // signInAs replaces the harness's cookie jar and signs in as someone else, so
 // a test can look at the interface through their eyes.
-func (h *harness) signInAs(t *testing.T, username string) {
+// newJar gives the harness a fresh browser, with no cookies at all.
+func (h *harness) newJar(t *testing.T) {
 	t.Helper()
-
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		t.Fatalf("cookiejar.New: %v", err)
 	}
 	h.client.Jar = jar
+}
+
+func (h *harness) signInAs(t *testing.T, username string) {
+	t.Helper()
+	h.newJar(t)
 
 	resp := h.post(t, "/login", url.Values{
-		"username": {username},
-		"password": {testPassword},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {username},
+		"password":   {testPassword},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("signing in as %s returned %d", username, resp.StatusCode)

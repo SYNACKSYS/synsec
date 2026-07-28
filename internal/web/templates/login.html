@@ -11,6 +11,7 @@
       {{if .Notice}}<p class="alert alert-ok">{{.Notice}}</p>{{end}}
 
       <form method="post" action="/login">
+        <input type="hidden" name="login_csrf" value="{{.CSRF}}">
         <div class="field">
           <label for="username">Nom d'utilisateur</label>
           <input id="username" name="username" type="text"

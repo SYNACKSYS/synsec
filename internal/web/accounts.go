@@ -72,7 +72,12 @@ func (s *Server) createAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cred, err := auth.HashPassword(r.PostFormValue("password"))
+	password := r.PostFormValue("password")
+	if err := auth.CheckPasswordStrength(password, username); err != nil {
+		s.redirectWithError(w, r, back, passwordProblem(err))
+		return
+	}
+	cred, err := auth.HashPassword(password)
 	if err != nil {
 		s.redirectWithError(w, r, back, passwordProblem(err))
 		return
@@ -151,7 +156,13 @@ func (s *Server) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cred, err := auth.HashPassword(r.PostFormValue("password"))
+	password := r.PostFormValue("password")
+	if err := auth.CheckPasswordStrength(password, target.Username); err != nil {
+		http.Redirect(w, r, "/comptes/motdepasse?user="+urlEncode(target.ID)+
+			"&erreur="+urlEncode(passwordProblem(err)), http.StatusSeeOther)
+		return
+	}
+	cred, err := auth.HashPassword(password)
 	if err != nil {
 		// Back to the form for this account, not to the list: the target is
 		// already settled and retyping is all that is left to do.
@@ -282,6 +293,8 @@ func passwordProblem(err error) string {
 		return "Le mot de passe doit faire au moins 10 caractères."
 	case errors.Is(err, auth.ErrPasswordTooLong):
 		return "Ce mot de passe est trop long."
+	case errors.Is(err, auth.ErrPasswordTooCommon):
+		return "Ce mot de passe est parmi les premiers essayés par une attaque. Prends autre chose."
 	default:
 		return "Ce mot de passe n'a pas été accepté."
 	}

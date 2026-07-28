@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"synsec/internal/api"
+	"synsec/internal/clientip"
 	"synsec/internal/config"
 	"synsec/internal/store"
 	"synsec/internal/tlsconf"
@@ -87,7 +88,7 @@ func logToFile(dir string) error {
 
 func runServer(args []string, stop <-chan struct{}) error {
 	cfg := config.Default()
-	var trustProxy bool
+	var trustedProxies, webAllow string
 
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	fs.StringVar(&cfg.DataDir, "data", cfg.DataDir, "dossier de données")
@@ -96,9 +97,14 @@ func runServer(args []string, stop <-chan struct{}) error {
 	// l'option écraserait SYNSEC_TLS_CERT par une chaîne vide.
 	fs.StringVar(&cfg.TLSCert, "tls-cert", cfg.TLSCert, "certificat TLS, chaîne complète (défaut : auto-signé)")
 	fs.StringVar(&cfg.TLSKey, "tls-key", cfg.TLSKey, "clé privée du certificat")
-	fs.BoolVar(&trustProxy, "trust-proxy", false, "croire l'en-tête X-Forwarded-For")
+	fs.StringVar(&trustedProxies, "trusted-proxies", "",
+		"adresses des proxies dont X-Forwarded-For est cru, séparées par des virgules")
+	fs.StringVar(&webAllow, "web-allow", "",
+		"restreint l'interface web à ces adresses ou blocs CIDR, séparés par des virgules")
 	fs.DurationVar(&cfg.SessionIdle, "session-idle", cfg.SessionIdle,
 		"délai d'inactivité avant déconnexion de l'interface web")
+	fs.DurationVar(&cfg.AuditRetain, "audit-retain", cfg.AuditRetain,
+		"durée de conservation du journal d'audit (0 = sans limite)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, strings.TrimSpace(`
 synsec serve - démarre le serveur
@@ -109,6 +115,12 @@ Options :
 	}
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if trustedProxies != "" {
+		cfg.TrustedProxies = splitList(trustedProxies)
+	}
+	if webAllow != "" {
+		cfg.WebAllow = splitList(webAllow)
 	}
 	if err := cfg.Validate(); err != nil {
 		return err
@@ -152,12 +164,32 @@ Options :
 	}
 	defer manager.Seal()
 
-	var apiOpts []api.Option
-	if trustProxy {
-		apiOpts = append(apiOpts, api.TrustProxyHeaders())
+	// Sessions expirées et vieilles lignes de journal : sans ce ménage, les
+	// deux tables croissent sans fin et un disque plein arrête le serveur.
+	janitorCtx, stopJanitor := context.WithCancel(ctx)
+	defer stopJanitor()
+	startJanitor(janitorCtx, db, cfg.AuditRetain)
+
+	// Qui a le droit de dire d'où vient une requête. Sans proxy nommé,
+	// X-Forwarded-For est ignoré : sinon n'importe quel appelant choisirait
+	// l'adresse contre laquelle ses listes blanches sont vérifiées.
+	clients, err := clientip.New(cfg.TrustedProxies)
+	if err != nil {
+		return fmt.Errorf("proxies de confiance : %w", err)
+	}
+	for _, entry := range cfg.WebAllow {
+		if _, err := store.ParseNetwork(entry); err != nil {
+			return fmt.Errorf("adresse autorisée sur l'interface : %w", err)
+		}
 	}
 
-	ui, err := web.New(manager, web.WithSessionIdle(cfg.SessionIdle))
+	apiOpts := []api.Option{api.TrustProxies(clients)}
+
+	ui, err := web.New(manager,
+		web.WithSessionIdle(cfg.SessionIdle),
+		web.TrustProxies(clients),
+		web.RestrictTo(cfg.WebAllow),
+	)
 	if err != nil {
 		return err
 	}

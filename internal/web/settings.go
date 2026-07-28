@@ -104,7 +104,13 @@ func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r)
 	const back = "/parametres/motdepasse"
 
-	if _, ok := s.verify(r, user.Username, r.PostFormValue("current")); !ok {
+	_, ok, busy := s.verify(r, user.Username, r.PostFormValue("current"))
+	if busy {
+		s.redirectWithError(w, r, back,
+			"Le serveur est momentanément surchargé. Réessaie dans quelques secondes.")
+		return
+	}
+	if !ok {
 		s.audit(r, store.AuditEntry{
 			ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 			Action: "auth.failed", Detail: "mot de passe actuel incorrect",
@@ -119,6 +125,10 @@ func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := auth.CheckPasswordStrength(password, user.Username); err != nil {
+		s.redirectWithError(w, r, back, passwordProblem(err))
+		return
+	}
 	cred, err := auth.HashPassword(password)
 	if err != nil {
 		s.redirectWithError(w, r, back, passwordProblem(err))
@@ -164,7 +174,7 @@ func (s *Server) reissueSession(w http.ResponseWriter, r *http.Request, user sto
 		UserID:    user.ID,
 		ExpiresAt: expiry,
 		UserAgent: truncate(r.UserAgent(), 200),
-		IP:        clientIP(r),
+		IP:        s.clientIP(r),
 	}
 	if err := s.vault.DB().CreateSession(r.Context(), &session, hash); err != nil {
 		return err

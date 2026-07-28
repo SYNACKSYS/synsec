@@ -3,7 +3,6 @@ package web
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -77,6 +76,15 @@ type pageData struct {
 	// SessionIdle is the server's inactivity timeout, in words. Shown rather
 	// than offered: it is the operator's setting, not a preference.
 	SessionIdle string
+
+	// The second factor: whether it is on, the secret being offered for
+	// enrolment, and the one-time codes shown exactly once.
+	TOTPEnabled   bool
+	TOTPSecret    string
+	TOTPGrouped   string
+	TOTPURI       string
+	RecoveryCodes []string
+	RecoveryLeft  int
 
 	// SourceURL and Version answer the licence notice: which build this is,
 	// and where its source can be fetched.
@@ -182,7 +190,7 @@ func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := pageData{Title: "Connexion"}
+	data := pageData{Title: "Connexion", CSRF: s.issueLoginToken(w)}
 	if r.URL.Query().Get("expiree") != "" {
 		data.Notice = "Ta session a expiré après " + humanDuration(s.sessionIdle) +
 			" sans activité. Reconnecte-toi."
@@ -193,7 +201,16 @@ func (s *Server) showLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		s.render(w, r, "login.html", http.StatusBadRequest, pageData{
-			Title: "Connexion", Error: "Formulaire illisible.",
+			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Formulaire illisible.",
+		})
+		return
+	}
+	if !validLoginToken(r) {
+		// Reissued with the refusal, so the person submits again rather than
+		// being told to reload a page they are already looking at.
+		s.render(w, r, "login.html", http.StatusForbidden, pageData{
+			Title: "Connexion", CSRF: s.issueLoginToken(w),
+			Error: "Ce formulaire n'est plus valable. Réessaie.",
 		})
 		return
 	}
@@ -204,20 +221,30 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 
 	// Throttling is keyed on the address rather than the username, so someone
 	// working through a list of names cannot get a fresh budget for each.
-	key := clientIP(r)
+	key := s.clientIP(r)
 	if wait, blocked := s.throttle.blocked(key, now); blocked {
 		s.audit(r, store.AuditEntry{
 			ActorKind: store.ActorUser, ActorLabel: username,
 			Action: "auth.throttled", Detail: "trop de tentatives",
 		})
 		s.render(w, r, "login.html", http.StatusTooManyRequests, pageData{
-			Title: "Connexion",
+			Title: "Connexion", CSRF: s.issueLoginToken(w),
 			Error: "Trop de tentatives. Réessaie dans " + humanDuration(wait) + ".",
 		})
 		return
 	}
 
-	user, ok := s.verify(r, username, password)
+	user, ok, busy := s.verify(r, username, password)
+	if busy {
+		// Telling someone their password is wrong because the server is
+		// saturated would send them changing a credential that was never the
+		// problem.
+		s.render(w, r, "login.html", http.StatusServiceUnavailable, pageData{
+			Title: "Connexion", CSRF: s.issueLoginToken(w),
+			Error: "Le serveur est momentanément surchargé. Réessaie dans quelques secondes.",
+		})
+		return
+	}
 	if !ok {
 		s.throttle.fail(key, now)
 		s.audit(r, store.AuditEntry{
@@ -227,17 +254,33 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 		// One message for both causes: naming which half was wrong would let
 		// anyone find out which accounts exist.
 		s.render(w, r, "login.html", http.StatusUnauthorized, pageData{
-			Title: "Connexion", Error: "Nom d'utilisateur ou mot de passe incorrect.",
+			Title: "Connexion", CSRF: s.issueLoginToken(w),
+			Error: "Nom d'utilisateur ou mot de passe incorrect.",
 		})
 		return
 	}
 	s.throttle.succeed(key)
 
+	// A password is one factor. When the account carries a second, no session
+	// is created yet: what has been proved so far is that someone knows a
+	// password, which is exactly the thing that leaks.
+	if secret, err := s.vault.DB().TOTPSecret(r.Context(), user.ID); err == nil && secret != "" {
+		s.startSecondFactor(w, r, user)
+		return
+	}
+
+	s.completeSignIn(w, r, user)
+}
+
+// completeSignIn creates the session once every factor has been satisfied.
+func (s *Server) completeSignIn(w http.ResponseWriter, r *http.Request, user store.User) {
+	now := s.now()
+
 	token, hash, err := auth.NewSessionToken()
 	if err != nil {
 		logError(r, err)
 		s.render(w, r, "login.html", http.StatusInternalServerError, pageData{
-			Title: "Connexion", Error: "Erreur interne.",
+			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Erreur interne.",
 		})
 		return
 	}
@@ -247,12 +290,12 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 		UserID:    user.ID,
 		ExpiresAt: expiry,
 		UserAgent: truncate(r.UserAgent(), 200),
-		IP:        clientIP(r),
+		IP:        s.clientIP(r),
 	}
 	if err := s.vault.DB().CreateSession(r.Context(), &session, hash); err != nil {
 		logError(r, err)
 		s.render(w, r, "login.html", http.StatusInternalServerError, pageData{
-			Title: "Connexion", Error: "Erreur interne.",
+			Title: "Connexion", CSRF: s.issueLoginToken(w), Error: "Erreur interne.",
 		})
 		return
 	}
@@ -273,25 +316,33 @@ func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
 //
 // A missing account still costs a password hash, so the time taken cannot be
 // used to tell an unknown name from a wrong password.
-func (s *Server) verify(r *http.Request, username, password string) (store.User, bool) {
-	user, err := s.vault.DB().UserByUsername(r.Context(), username)
+// The third result says the server is saturated, which a caller must be able
+// to tell apart from a wrong password.
+func (s *Server) verify(r *http.Request, username, password string) (user store.User, ok, busy bool) {
+	found, err := s.vault.DB().UserByUsername(r.Context(), username)
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
 			logError(r, err)
 		}
-		auth.VerifyPassword(decoyCredentials(), password)
-		return store.User{}, false
+		// The decoy costs the same derivation and queues in the same place, so
+		// a saturated server does not answer faster for an unknown account.
+		if _, err := auth.VerifyPasswordBusy(decoyCredentials(), password); err != nil {
+			return store.User{}, false, true
+		}
+		return store.User{}, false, false
 	}
 
-	cred, err := s.vault.DB().UserCredentials(r.Context(), user.ID)
+	cred, err := s.vault.DB().UserCredentials(r.Context(), found.ID)
 	if err != nil {
 		logError(r, err)
-		return store.User{}, false
+		return store.User{}, false, false
 	}
-	if !auth.VerifyPassword(cred, password) {
-		return store.User{}, false
+
+	match, err := auth.VerifyPasswordBusy(cred, password)
+	if err != nil {
+		return store.User{}, false, true
 	}
-	return user, true
+	return found, match, false
 }
 
 // decoyCredentials is a well-formed verifier that nothing matches, used to
@@ -322,23 +373,17 @@ func (s *Server) doLogout(w http.ResponseWriter, r *http.Request) {
 // audit appends an entry, filling in the address and time.
 func (s *Server) audit(r *http.Request, e store.AuditEntry) {
 	e.At = s.now()
-	e.IP = clientIP(r)
+	e.IP = s.clientIP(r)
 	if err := s.vault.DB().AppendAudit(r.Context(), e); err != nil {
 		logError(r, err)
 	}
 }
 
-// clientIP uses the connection address only.
-//
-// The browser interface is reached directly on the home network, so there is
-// no proxy header worth trusting - and trusting one would let a caller forge
-// the address recorded in the audit log.
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
+// clientIP is the address the throttle, the allowlist and the audit log are
+// held to. X-Forwarded-For counts only when the operator named the proxies
+// allowed to set it.
+func (s *Server) clientIP(r *http.Request) string {
+	return s.clients.From(r)
 }
 
 func truncate(s string, n int) string {

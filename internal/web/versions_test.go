@@ -30,7 +30,7 @@ func TestHistoryIsVisibleOnTheSecretPage(t *testing.T) {
 	h := newHarness(t)
 	h.signIn(t)
 	vault := h.newVault(t, "Maison")
-	h.writeVersions(t, vault.ID, "mqtt_password", "un", "deux", "trois")
+	h.writeVersions(t, vault.ID, "mqtt_password", "valeurUNE", "valeurDEUX", "valeurTROIS")
 
 	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret?name=mqtt_password"))
 	for _, want := range []string{"Historique", "v1", "v2", "v3", "en cours"} {
@@ -39,10 +39,14 @@ func TestHistoryIsVisibleOnTheSecretPage(t *testing.T) {
 		}
 	}
 
-	// Only the current value is decrypted; the old ones are not on the page.
-	if strings.Contains(page, "un") && strings.Contains(page, "deux") {
-		if strings.Count(page, "deux") > 0 {
-			t.Error("an old value was rendered alongside the history")
+	// Only the current value is on the page. Listing the past must not mean
+	// decrypting it, so the earlier values appear nowhere.
+	if !strings.Contains(page, "valeurTROIS") {
+		t.Error("the current value is missing")
+	}
+	for _, old := range []string{"valeurUNE", "valeurDEUX"} {
+		if strings.Contains(page, old) {
+			t.Errorf("the old value %q was rendered alongside the history", old)
 		}
 	}
 }
@@ -90,7 +94,7 @@ func TestReaderCannotRevert(t *testing.T) {
 	h := newHarness(t)
 	h.signIn(t)
 	vault := h.newVault(t, "Maison")
-	h.writeVersions(t, vault.ID, "mqtt_password", "un", "deux")
+	h.writeVersions(t, vault.ID, "mqtt_password", "valeurUNE", "valeurDEUX")
 	alice := h.addUser(t, "alice")
 	ctx := context.Background()
 
@@ -119,7 +123,7 @@ func TestRevertRefusesNonsense(t *testing.T) {
 	h := newHarness(t)
 	h.signIn(t)
 	vault := h.newVault(t, "Maison")
-	h.writeVersions(t, vault.ID, "mqtt_password", "un", "deux")
+	h.writeVersions(t, vault.ID, "mqtt_password", "valeurUNE", "valeurDEUX")
 
 	for _, version := range []string{"0", "9", "-1", "abc", "2"} {
 		resp := h.post(t, "/coffres/"+vault.ID+"/secret/revenir", url.Values{

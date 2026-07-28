@@ -213,6 +213,65 @@ elle affiche l'interface en permanence, monte le délai plutôt que de
 contourner : `-session-idle 12h` reste très au-dessus de ce qu'un onglet
 oublié tient sans que personne y touche.
 
+## Exposer le serveur sur Internet
+
+SYNSEC est pensé pour un réseau domestique. Rien n'empêche de l'exposer, mais
+les hypothèses changent, et quatre réglages deviennent nécessaires.
+
+**La façon la plus sûre reste de ne pas l'exposer.** Un tunnel WireGuard ou
+Tailscale devant supprime d'un coup tout ce qui suit, pour une demi-heure de
+configuration.
+
+### Restreindre l'interface à des adresses
+
+L'API a des listes blanches par jeton ; le navigateur n'avait rien.
+
+```
+synsec serve -web-allow 192.168.1.0/24,203.0.113.7
+```
+
+Une adresse hors liste est refusée avant le routage et avant toute recherche de
+session : elle n'atteint même pas le formulaire de connexion, et ne coûte donc
+aucun calcul de mot de passe.
+
+### Nommer les proxies
+
+Derrière un proxy inverse, `X-Forwarded-For` doit être cru - mais seulement
+venant de lui :
+
+```
+synsec serve -trusted-proxies 10.0.0.0/8
+```
+
+Sans cette option, l'en-tête est ignoré, ce qui est le bon défaut : le croire
+sans condition laisserait n'importe quel appelant choisir l'adresse contre
+laquelle ses restrictions sont vérifiées. La chaîne est lue **de droite à
+gauche**, en écartant les sauts qui sont eux-mêmes des proxies déclarés. Lire
+la première entrée, comme le montrent la plupart des exemples, laisserait un
+attaquant préfixer l'adresse de son choix.
+
+### Activer la vérification en deux étapes
+
+**Paramètres / Vérification en deux étapes.** Le mot de passe seul est le seul
+obstacle entre une fuite d'identifiants ailleurs et tous tes secrets, et le
+freinage par adresse ne couvre pas ce cas : il suffit de changer d'IP.
+
+Dix codes de secours sont affichés une fois à l'activation. Range-les ailleurs
+que sur le téléphone qui porte l'application.
+
+### Borner le journal
+
+Chaque échec de connexion écrit une ligne. Sur un serveur exposé, un disque
+plein arrête le serveur sans qu'aucune faille soit nécessaire.
+
+```
+synsec serve -audit-retain 8760h
+```
+
+Sans cette option le journal est conservé sans limite, ce qui est le bon défaut
+à la maison. Les sessions expirées, elles, sont purgées toutes les heures dans
+tous les cas.
+
 ## Le journal d'audit
 
 Chaque lecture, écriture, partage, connexion et refus est enregistré, avec
@@ -374,4 +433,7 @@ arguments, indifféremment.
 | `SYNSEC_SESSION_IDLE` | délai d'inactivité avant déconnexion, par défaut `30m` |
 | `SYNSEC_TLS_CERT` | certificat TLS, chaîne complète |
 | `SYNSEC_TLS_KEY` | clé privée du certificat |
+| `SYNSEC_TRUSTED_PROXIES` | adresses des proxies dont X-Forwarded-For est cru |
+| `SYNSEC_WEB_ALLOW` | restreint l'interface web à ces adresses ou blocs CIDR |
+| `SYNSEC_AUDIT_RETAIN` | conservation du journal, par exemple `8760h` ; vide = sans limite |
 | `SYNSEC_USER` | compte utilisé par les commandes qui touchent un secret |

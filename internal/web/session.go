@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"net/http"
@@ -14,7 +15,13 @@ import (
 	"synsec/internal/store"
 )
 
-const sessionCookie = "synsec_session"
+const (
+	sessionCookie = "synsec_session"
+
+	// loginCookie carries the token that ties a sign-in form to the browser
+	// that asked for it.
+	loginCookie = "synsec_login"
+)
 
 type ctxKey int
 
@@ -261,4 +268,53 @@ func (t *throttle) succeed(key string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.records, key)
+}
+
+// Sign-in carries no session yet, so it cannot use the derived CSRF token. It
+// uses the other standard construction instead: a random value set as a cookie
+// when the form is served, and repeated in the form itself. Only a browser
+// that fetched the page can produce both.
+//
+// What this stops is login CSRF - another site quietly signing a visitor into
+// an account the attacker controls. On a secrets manager the consequence is
+// worse than usual: whatever the victim then stores lands in a vault that is
+// not theirs.
+
+// issueLoginToken sets the cookie and returns the value to embed in the form.
+func (s *Server) issueLoginToken(w http.ResponseWriter) string {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		// Without a token the form cannot be validated, so refuse rather than
+		// serve one that will be rejected.
+		return ""
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     loginCookie,
+		Value:    token,
+		Path:     "/login",
+		MaxAge:   int(loginTokenLife.Seconds()),
+		HttpOnly: true,
+		Secure:   s.secureCookies,
+		SameSite: http.SameSiteStrictMode,
+	})
+	return token
+}
+
+// loginTokenLife bounds how long a served sign-in form stays usable.
+const loginTokenLife = 30 * time.Minute
+
+// validLoginToken reports whether the posted form came from a page this server
+// served to this browser.
+func validLoginToken(r *http.Request) bool {
+	cookie, err := r.Cookie(loginCookie)
+	if err != nil || cookie.Value == "" {
+		return false
+	}
+	posted := r.PostFormValue("login_csrf")
+	if posted == "" {
+		return false
+	}
+	return hmac.Equal([]byte(posted), []byte(cookie.Value))
 }

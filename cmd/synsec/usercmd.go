@@ -84,7 +84,7 @@ func runUserCreate(args []string) error {
 		}
 		isAdmin := *admin || count == 0
 
-		password, err := promptNewPassword()
+		password, err := promptNewPasswordFor(username)
 		if err != nil {
 			return err
 		}
@@ -180,7 +180,7 @@ func runUserPasswd(args []string) error {
 			return err
 		}
 
-		password, err := promptNewPassword()
+		password, err := promptNewPasswordFor(u.Username)
 		if err != nil {
 			return err
 		}
@@ -292,12 +292,21 @@ func countAdmins(ctx context.Context, db *store.DB) (int, error) {
 // machine in whatever records that scrollback. Asking twice catches the typo
 // that would otherwise lock the owner out of their own server.
 func promptNewPassword() (string, error) {
+	return promptNewPasswordFor("")
+}
+
+// promptNewPasswordFor asks twice and refuses what guessing tries first.
+func promptNewPasswordFor(username string) (string, error) {
 	first, err := promptPassword("Mot de passe : ")
 	if err != nil {
 		return "", err
 	}
 	if len([]rune(first)) < auth.MinPasswordLength {
 		return "", auth.ErrPasswordTooShort
+	}
+
+	if err := auth.CheckPasswordStrength(first, username); err != nil {
+		return "", passwordAdvice(err)
 	}
 
 	second, err := promptPassword("Confirmation : ")
@@ -331,4 +340,18 @@ func promptPassword(prompt string) (string, error) {
 		return "", fmt.Errorf("lecture du mot de passe : %w", err)
 	}
 	return string(raw), nil
+}
+
+// passwordAdvice turns a refusal into something worth reading at a terminal.
+func passwordAdvice(err error) error {
+	switch {
+	case errors.Is(err, auth.ErrPasswordTooShort):
+		return fmt.Errorf("le mot de passe doit faire au moins %d caractères", auth.MinPasswordLength)
+	case errors.Is(err, auth.ErrPasswordTooLong):
+		return errors.New("ce mot de passe est trop long")
+	case errors.Is(err, auth.ErrPasswordTooCommon):
+		return errors.New("ce mot de passe est parmi les premiers essayés par une attaque, prends autre chose")
+	default:
+		return err
+	}
 }

@@ -24,9 +24,16 @@ var Version = "dev"
 // obligation is towards anyone the server interacts with, and a page that
 // required an account would not discharge it.
 func (s *Server) showSource(w http.ResponseWriter, r *http.Request) {
-	s.render(w, r, "source.html", http.StatusOK, pageData{
+	data := pageData{
 		Title:     "Licence et source",
 		SourceURL: SourceURL,
-		Version:   Version,
-	})
+	}
+
+	// The build number is withheld from anonymous visitors. The licence is
+	// owed to anyone; knowing which release is running only helps someone
+	// matching a server against a list of known flaws.
+	if _, _, _, ok := s.currentSession(r); ok {
+		data.Version = Version
+	}
+	s.render(w, r, "source.html", http.StatusOK, data)
 }

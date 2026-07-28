@@ -26,6 +26,7 @@
       <span class="nav-label nav-label-spaced">Paramètres</span>
       <a href="/parametres" {{if eq .Nav "parametres"}}aria-current="page"{{end}}>Apparence</a>
       <a href="/parametres/motdepasse" {{if eq .Nav "motdepasse"}}aria-current="page"{{end}}>Mot de passe</a>
+      <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Vérification en deux étapes</a>
 
       {{if or .User.IsAdmin .CanReadAudit}}
       <span class="nav-label nav-label-spaced">Administration</span>

@@ -1,0 +1,93 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Vérification en deux étapes</h1>
+    <p class="subtitle">
+      Un code à six chiffres en plus de ton mot de passe. C'est ce qui protège
+      ton compte le jour où le mot de passe fuite ailleurs.
+    </p>
+  </div>
+</div>
+
+{{if .TOTPEnabled}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <p class="alert alert-ok">
+      Active sur ton compte. Une connexion demande ton mot de passe, puis un
+      code.
+    </p>
+    <p class="help">
+      Il te reste <strong>{{.RecoveryLeft}}</strong>
+      {{plural .RecoveryLeft "code de secours" "codes de secours"}}. Désactiver
+      puis réactiver la vérification en génère de nouveaux.
+    </p>
+  </div>
+</div>
+
+<div class="page-head section">
+  <div><h1>Désactiver</h1></div>
+</div>
+
+<div class="card card-narrow card-danger">
+  <div class="card-body">
+    <form method="post" action="/parametres/verification/desactiver">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="password">Ton mot de passe</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" required>
+        <p class="help">
+          Redemandé ici parce qu'un navigateur laissé ouvert est exactement la
+          situation que la vérification existe pour absorber.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">Désactiver</button>
+      </div>
+    </form>
+  </div>
+</div>
+{{else}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/parametres/verification">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="secret" value="{{.TOTPSecret}}">
+
+      <h2>1. Ajoute le compte à ton application</h2>
+      <p class="help">
+        Google Authenticator, Aegis, 1Password, ou toute autre. Saisis cette
+        clé à la main :
+      </p>
+      <pre class="token">{{.TOTPGrouped}}</pre>
+      <p class="help">
+        Ou colle cette adresse, si ton application sait la lire :
+      </p>
+      <pre class="snippet">{{.TOTPURI}}</pre>
+
+      <h2 class="stacked">2. Recopie le code affiché</h2>
+      <div class="field">
+        <label for="code">Code à six chiffres</label>
+        <input id="code" name="code" type="text" inputmode="numeric"
+               autocomplete="one-time-code" required placeholder="123456">
+        <p class="help">
+          Rien n'est enregistré tant que ce code n'a pas prouvé que ton
+          application détient bien la clé.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Activer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="hint">
+  Quitter cette page sans valider ne laisse rien derrière : la clé affichée est
+  tirée à chaque visite et oubliée si elle n'est pas confirmée.
+</p>
+{{end}}
+{{end}}

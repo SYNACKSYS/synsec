@@ -41,12 +41,18 @@ var (
 )
 
 // HashPassword derives a verifier for a newly chosen password.
+// HashPassword derives a verifier, waiting its turn if the server is already
+// deriving as many as it will hold at once.
 func HashPassword(password string) (store.Credentials, error) {
-	return hashPasswordWith(password, crypto.DefaultArgon2)
+	return withSlot(func() (store.Credentials, error) {
+		return hashPasswordWith(password, crypto.DefaultArgon2)
+	})
 }
 
 // HashPasswordWith derives a verifier using explicit parameters, for hosts
 // where the default 64 MiB working set is too much to ask.
+// HashPasswordWith derives with explicit parameters, for tests and for hosts
+// that were set up with a lighter profile.
 func HashPasswordWith(password string, params crypto.Argon2Params) (store.Credentials, error) {
 	return hashPasswordWith(password, params)
 }
@@ -74,7 +80,27 @@ func hashPasswordWith(password string, params crypto.Argon2Params) (store.Creden
 //
 // The comparison is constant-time. Any malformed verifier is a failure rather
 // than an error, so a corrupted row can never be turned into a way in.
+// VerifyPassword reports whether a password matches, in constant time.
+//
+// Refused rather than queued without end when the server is saturated: the
+// derivation is the expensive part, and a caller told "busy" can say so, where
+// a caller held indefinitely holds a connection with it.
 func VerifyPassword(cred store.Credentials, password string) bool {
+	ok, err := withSlot(func() (bool, error) {
+		return verifyPassword(cred, password), nil
+	})
+	return err == nil && ok
+}
+
+// VerifyPasswordBusy is VerifyPassword for callers that need to tell a wrong
+// password apart from a saturated server.
+func VerifyPasswordBusy(cred store.Credentials, password string) (bool, error) {
+	return withSlot(func() (bool, error) {
+		return verifyPassword(cred, password), nil
+	})
+}
+
+func verifyPassword(cred store.Credentials, password string) bool {
 	if len(cred.Hash) == 0 || len(cred.Salt) == 0 {
 		return false
 	}

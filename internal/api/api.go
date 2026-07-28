@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"synsec/internal/clientip"
 	"synsec/internal/vault"
 )
 
@@ -22,22 +23,24 @@ type Server struct {
 	vault *vault.Manager
 	now   func() time.Time
 
-	// trustProxyHeaders decides whether X-Forwarded-For is believed.
+	// clients decides which address a request came from.
 	//
-	// It defaults to false, and that default is load-bearing: token IP
-	// allowlists are enforced against the address this yields, and anyone can
-	// put anything in an X-Forwarded-For header. Trusting it without a proxy
-	// in front would turn the allowlist into decoration.
-	trustProxyHeaders bool
+	// It ignores X-Forwarded-For unless the operator named the proxies that may
+	// set it. That default is load-bearing: token allowlists are enforced
+	// against the address this yields, and anyone can put anything in that
+	// header.
+	clients *clientip.Resolver
 }
 
 // Option configures a Server.
 type Option func(*Server)
 
-// TrustProxyHeaders makes the server believe X-Forwarded-For. Only enable it
-// when SYNSEC genuinely sits behind a reverse proxy that overwrites the header.
-func TrustProxyHeaders() Option {
-	return func(s *Server) { s.trustProxyHeaders = true }
+// TrustProxies believes X-Forwarded-For, but only from the addresses given.
+//
+// Naming them is the point. A blanket "trust the header" would let any caller
+// choose the address its allowlist is checked against, simply by setting it.
+func TrustProxies(r *clientip.Resolver) Option {
+	return func(s *Server) { s.clients = r }
 }
 
 // withClock replaces the clock, for tests.
@@ -47,7 +50,8 @@ func withClock(now func() time.Time) Option {
 
 // New builds a server over an unsealed vault manager.
 func New(v *vault.Manager, opts ...Option) *Server {
-	s := &Server{vault: v, now: time.Now}
+	direct, _ := clientip.New(nil)
+	s := &Server{vault: v, now: time.Now, clients: direct}
 	for _, opt := range opts {
 		opt(s)
 	}

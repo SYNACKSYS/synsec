@@ -103,11 +103,31 @@ func (h *harness) post(t *testing.T, path string, form url.Values) *http.Respons
 	return resp
 }
 
+// loginToken fetches the sign-in page and returns the token it set, the way a
+// browser would before submitting the form.
+func (h *harness) loginToken(t *testing.T) string {
+	t.Helper()
+	h.get(t, "/login")
+
+	u, err := url.Parse(h.srv.URL + "/login")
+	if err != nil {
+		t.Fatalf("parsing server URL: %v", err)
+	}
+	for _, c := range h.client.Jar.Cookies(u) {
+		if c.Name == loginCookie {
+			return c.Value
+		}
+	}
+	t.Fatal("the sign-in page set no login token")
+	return ""
+}
+
 func (h *harness) signIn(t *testing.T) {
 	t.Helper()
 	resp := h.post(t, "/login", url.Values{
-		"username": {"cyril"},
-		"password": {testPassword},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"},
+		"password":   {testPassword},
 	})
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("sign-in returned %d, want 303", resp.StatusCode)
@@ -128,6 +148,22 @@ func (h *harness) sessionCookieValue(t *testing.T) string {
 		}
 	}
 	return ""
+}
+
+// withoutLoginToken blanks the per-render sign-in token, so two pages can be
+// compared for everything else.
+func withoutLoginToken(page string) string {
+	const marker = `name="login_csrf" value="`
+	start := strings.Index(page, marker)
+	if start < 0 {
+		return page
+	}
+	rest := page[start+len(marker):]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		return page
+	}
+	return page[:start+len(marker)] + rest[end:]
 }
 
 func body(t *testing.T, resp *http.Response) string {
@@ -180,17 +216,21 @@ func TestFailedSignInsLookIdentical(t *testing.T) {
 	h := newHarness(t)
 
 	wrongPassword := h.post(t, "/login", url.Values{
-		"username": {"cyril"}, "password": {"pas le bon"},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"}, "password": {"pas le bon"},
 	})
 	unknownUser := h.post(t, "/login", url.Values{
-		"username": {"personne"}, "password": {testPassword},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"personne"}, "password": {testPassword},
 	})
 
 	if wrongPassword.StatusCode != unknownUser.StatusCode {
 		t.Fatalf("wrong password gives %d, unknown account gives %d",
 			wrongPassword.StatusCode, unknownUser.StatusCode)
 	}
-	if body(t, wrongPassword) != body(t, unknownUser) {
+	// Each refusal carries a fresh sign-in token, so the pages differ by that
+	// one value and by nothing else - which is what has to be compared.
+	if withoutLoginToken(body(t, wrongPassword)) != withoutLoginToken(body(t, unknownUser)) {
 		t.Fatal("the two failures produce different pages")
 	}
 }
@@ -199,7 +239,8 @@ func TestSignInRejectsBadCredentials(t *testing.T) {
 	h := newHarness(t)
 
 	resp := h.post(t, "/login", url.Values{
-		"username": {"cyril"}, "password": {"pas le bon"},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"}, "password": {"pas le bon"},
 	})
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("a wrong password returned %d, want 401", resp.StatusCode)
@@ -251,7 +292,8 @@ func TestSessionCookieIsProtected(t *testing.T) {
 	h := newHarness(t)
 
 	resp := h.post(t, "/login", url.Values{
-		"username": {"cyril"}, "password": {testPassword},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"}, "password": {testPassword},
 	})
 
 	var found bool
@@ -278,7 +320,8 @@ func TestSignInIsThrottled(t *testing.T) {
 	var last *http.Response
 	for i := 0; i < throttleAfter+1; i++ {
 		last = h.post(t, "/login", url.Values{
-			"username": {"cyril"}, "password": {"pas le bon"},
+			"login_csrf": {h.loginToken(t)},
+			"username":   {"cyril"}, "password": {"pas le bon"},
 		})
 	}
 	if last.StatusCode != http.StatusTooManyRequests {
@@ -288,7 +331,8 @@ func TestSignInIsThrottled(t *testing.T) {
 	// The lockout must hold even once the password is right, or it would
 	// achieve nothing.
 	resp := h.post(t, "/login", url.Values{
-		"username": {"cyril"}, "password": {testPassword},
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"}, "password": {testPassword},
 	})
 	if resp.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("a correct password bypassed the lockout (%d)", resp.StatusCode)
@@ -319,7 +363,10 @@ func TestThrottleForgetsAfterSuccess(t *testing.T) {
 
 func TestSignInIsAudited(t *testing.T) {
 	h := newHarness(t)
-	h.post(t, "/login", url.Values{"username": {"cyril"}, "password": {"pas le bon"}})
+	h.post(t, "/login", url.Values{
+		"login_csrf": {h.loginToken(t)},
+		"username":   {"cyril"}, "password": {"pas le bon"},
+	})
 	h.signIn(t)
 
 	entries, err := h.manager.DB().ListAudit(context.Background(), store.AuditFilter{})

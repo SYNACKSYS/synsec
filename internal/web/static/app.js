@@ -154,3 +154,47 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 });
+
+// Narrow a list that is already on screen.
+//
+// A round trip to filter rows the browser is holding would be slower and would
+// cost a page render for every keystroke. This only ever hides rows the server
+// already decided this account may see.
+document.addEventListener("DOMContentLoaded", function () {
+  var boxes = document.querySelectorAll("[data-filter]");
+
+  Array.prototype.forEach.call(boxes, function (box) {
+    var table = document.querySelector(box.dataset.filter);
+    if (!table) {
+      return;
+    }
+    var rows = table.querySelectorAll("tbody tr");
+    var count = document.querySelector("[data-filter-count]");
+
+    box.addEventListener("input", function () {
+      var needle = fold(box.value);
+      var shown = 0;
+
+      Array.prototype.forEach.call(rows, function (row) {
+        var hit = needle === "" || fold(row.textContent).indexOf(needle) !== -1;
+        row.hidden = !hit;
+        if (hit) {
+          shown++;
+        }
+      });
+
+      if (count) {
+        count.textContent = needle === "" ? "" : shown + " sur " + rows.length;
+      }
+    });
+  });
+});
+
+// fold matches the server's own comparison: lower case, accents removed, so
+// "sauvegarde" finds "Sauvegardé" and the filter agrees with the search page.
+function fold(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}

@@ -67,3 +67,71 @@ func TestDisplaySizeIsPerAccount(t *testing.T) {
 		t.Fatal("alice inherited another account's display size")
 	}
 }
+
+// The palette rides on the same element as the size, so both have to reach
+// every page and neither may disturb the other.
+func TestThePaletteAppliesToEveryPage(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	if page := body(t, h.get(t, "/")); strings.Contains(page, "theme-") {
+		t.Fatal("a palette is applied before anything was chosen")
+	}
+
+	resp := h.post(t, "/parametres/apparence", url.Values{
+		"csrf": {h.csrf(t)}, "scale": {"80"}, "theme": {"laiton"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("saving the palette returned %d", resp.StatusCode)
+	}
+
+	page := body(t, h.get(t, "/"))
+	if !strings.Contains(page, `class="scale-80 theme-laiton"`) {
+		t.Fatal("the home page carries neither the size nor the palette")
+	}
+	if page := body(t, h.get(t, "/parametres")); !strings.Contains(page, "theme-laiton") {
+		t.Fatal("the settings page is not drawn in the chosen palette")
+	}
+
+	// Back to the default: the class must disappear rather than be written out.
+	h.post(t, "/parametres/apparence", url.Values{
+		"csrf": {h.csrf(t)}, "scale": {"80"}, "theme": {"ardoise"},
+	})
+	if page := body(t, h.get(t, "/")); strings.Contains(page, "theme-") {
+		t.Fatal("the default palette is written into the page")
+	}
+}
+
+// The palette is written into a class name, so anything outside the list must
+// be refused rather than reflected into the markup.
+func TestAnUnknownPaletteIsRefused(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	for _, bad := range []string{"neon", "laiton\" onload=\"x", "../"} {
+		resp := h.post(t, "/parametres/apparence", url.Values{
+			"csrf": {h.csrf(t)}, "scale": {"100"}, "theme": {bad},
+		})
+		if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+			t.Fatalf("the palette %q was accepted", bad)
+		}
+	}
+}
+
+// Sending only the size must leave the palette where it was, since the two
+// share one form.
+func TestSavingTheSizeAloneKeepsThePalette(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	h.post(t, "/parametres/apparence", url.Values{
+		"csrf": {h.csrf(t)}, "scale": {"100"}, "theme": {"laiton"},
+	})
+	h.post(t, "/parametres/apparence", url.Values{
+		"csrf": {h.csrf(t)}, "scale": {"90"},
+	})
+
+	if page := body(t, h.get(t, "/")); !strings.Contains(page, "theme-laiton") {
+		t.Fatal("saving the size alone reset the palette")
+	}
+}

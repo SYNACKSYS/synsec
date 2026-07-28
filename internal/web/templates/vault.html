@@ -23,8 +23,17 @@
 </div>
 
 {{if .Secrets}}
+{{/* Narrowing a list you are already looking at should not need a round trip,
+     so this one filters what is on screen. Hidden until the script runs. */}}
+<div class="list-filter" data-needs-js hidden>
+  <label for="filtre" class="visually-hidden">Filtrer les secrets</label>
+  <input id="filtre" type="search" placeholder="Filtrer cette liste"
+         data-filter="#secrets" autocomplete="off">
+  <span class="filter-count" data-filter-count></span>
+</div>
+
 <div class="table-wrap">
-  <table>
+  <table id="secrets">
     <thead>
       <tr>
         <th>Nom</th>
@@ -36,28 +45,28 @@
     <tbody>
       {{range .Secrets}}
       <tr>
+        {{/* The name is the way in. A row that carried an Open button beside a
+             name that did nothing made the two compete for the same click. */}}
         <td class="path">
-          {{.Display}}
+          <a href="/coffres/{{$.Vault.ID}}/secret?name={{.Name}}">{{.Display}}</a>
           <span class="slug"><code>{{.Name}}</code></span>
         </td>
         <td class="num">v{{.Version}}</td>
         <td class="when">{{date .UpdatedAt}}</td>
         <td class="actions">
           <div class="actions-row">
-            <a class="btn btn-secondary btn-sm"
-               href="/coffres/{{$.Vault.ID}}/secret?name={{.Name}}">
-              {{if $.CanWrite}}Modifier{{else}}Consulter{{end}}
-            </a>
             {{if $.CanManage}}
-            <a class="btn btn-secondary btn-sm"
+            <a class="btn btn-ghost btn-sm"
                href="/coffres/{{$.Vault.ID}}/partages?name={{.Name}}">Partager</a>
             {{end}}
             {{if $.CanWrite}}
+            {{/* Quieter than the rest of the row: deleting is rare, and a red
+                 block on every line trains the eye to stop seeing it. */}}
             <form method="post" action="/coffres/{{$.Vault.ID}}/secret/supprimer"
                   data-confirm="Supprimer {{.Name}} et tout son historique ?">
               <input type="hidden" name="csrf" value="{{$.CSRF}}">
               <input type="hidden" name="name" value="{{.Name}}">
-              <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+              <button type="submit" class="btn btn-ghost btn-sm btn-quiet-danger">Supprimer</button>
             </form>
             {{end}}
           </div>

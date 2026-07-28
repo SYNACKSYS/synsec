@@ -2,7 +2,7 @@
 {{/* The display size rides on the root element: everything below is sized in
      rem, so one class scales the whole interface. A class rather than an
      inline style because the policy this server sends forbids those. */}}
-<html lang="fr"{{if .Scale}} class="scale-{{.Scale}}"{{end}}>
+<html lang="fr"{{if or .Scale .Theme}} class="{{if .Scale}}scale-{{.Scale}}{{end}}{{if .Theme}} theme-{{.Theme}}{{end}}"{{end}}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,6 +18,14 @@
 <div class="shell">
   <aside class="sidebar">
     <a class="brand" href="/">SYNSEC</a>
+
+    {{if not .MustEnrol}}
+    <form class="sidebar-search" method="get" action="/recherche" role="search">
+      <label for="sidebar-q" class="visually-hidden">Chercher un secret</label>
+      <input id="sidebar-q" name="q" type="search" placeholder="Chercher un secret"
+             value="{{if eq .Nav "recherche"}}{{.Search}}{{end}}">
+    </form>
+    {{end}}
 
     <nav class="nav">
       {{if .MustEnrol}}

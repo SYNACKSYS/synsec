@@ -73,6 +73,9 @@ type pageData struct {
 	// are the choices offered on the settings page.
 	Scale  int
 	Scales []scaleRow
+	// Theme is the palette this account chose; Themes are the ones offered.
+	Theme  string
+	Themes []themeRow
 
 	// SessionIdle is the server's inactivity timeout, in words. Shown rather
 	// than offered: it is the operator's setting, not a preference.

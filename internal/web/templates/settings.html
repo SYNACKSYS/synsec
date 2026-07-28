@@ -13,7 +13,8 @@
   <div>
     <h1>Apparence</h1>
     <p class="subtitle">
-      La taille de l'interface, si tu la trouves trop grande ou trop petite.
+      La taille de l'interface et sa palette. Clair ou sombre suit ton système
+      dans les deux cas : ça ne se règle pas ici.
     </p>
   </div>
 </div>
@@ -34,6 +35,20 @@
           Équivaut au zoom du navigateur, mais enregistré : plus besoin de le
           régler sur chaque appareil.
         </p>
+      </div>
+
+      <div class="field">
+        <label for="theme">Palette</label>
+        <select id="theme" name="theme">
+          {{range .Themes}}
+          <option value="{{.Value}}" {{if .Current}}selected{{end}}>{{.Label}}</option>
+          {{end}}
+        </select>
+        <ul class="check-list">
+          {{range .Themes}}
+          <li><strong>{{.Label}}</strong> - {{.Note}}</li>
+          {{end}}
+        </ul>
       </div>
 
       <div class="form-actions">

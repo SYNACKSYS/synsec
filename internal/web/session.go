@@ -31,6 +31,7 @@ const (
 	ctxScale
 	ctxCanReadAudit
 	ctxMustEnrol
+	ctxTheme
 )
 
 // enrolmentPaths are the only pages an account that owes a second factor may
@@ -109,6 +110,7 @@ func (s *Server) requireLogin(h http.HandlerFunc) http.HandlerFunc {
 		// Resolved once here rather than in each handler: every page is drawn
 		// at this size, and render picks it up from the context on its own.
 		ctx = context.WithValue(ctx, ctxScale, s.loadScale(ctx, user))
+		ctx = context.WithValue(ctx, ctxTheme, s.loadTheme(ctx, user))
 
 		// The sidebar has to know whether to show the journal at all, so this
 		// is resolved for every page rather than only for the journal itself.

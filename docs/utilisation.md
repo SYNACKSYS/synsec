@@ -32,6 +32,32 @@ secrets précis.
 **+ Nouveau coffre** dans le menu de gauche. Donne-lui un nom que tu
 reconnaîtras d'un coup d'œil. Tu en deviens le propriétaire et le gestionnaire.
 
+### Retrouver un secret
+
+Le champ en haut du menu de gauche cherche dans **tous les coffres qui te sont
+accessibles**, sans que tu aies à te souvenir duquel. Il porte sur le nom
+lisible et sur l'identifiant technique, accents ou pas, majuscules ou pas :
+`régulateur`, `regulateur` et `RÉGULATEUR` trouvent la même chose.
+
+Les valeurs ne sont pas fouillées. Les chercher voudrait dire déchiffrer chaque
+secret de chaque coffre à chaque requête - lent, et exactement le genre de
+lecture en masse que le journal d'audit existe pour rendre visible.
+
+Sur la page d'un coffre, le champ **Filtrer cette liste** réduit le tableau
+sous tes doigts, sans aller-retour avec le serveur.
+
+### L'apparence
+
+**Paramètres / Apparence** règle deux choses, enregistrées sur ton compte et
+donc valables sur tous tes navigateurs :
+
+- la **taille d'affichage**, de 80 à 125 %, l'équivalent du zoom du navigateur
+  mais que tu ne réregles pas sur chaque appareil ;
+- la **palette** : *Ardoise*, gris et indigo, ou *Laiton*, zinc et laiton aux
+  angles droits.
+
+Clair ou sombre suit ton système dans les deux cas, et ne se règle pas ici.
+
 ### Supprimer un coffre
 
 En bas de la page du coffre, réservé à son **propriétaire** : gérer un coffre,

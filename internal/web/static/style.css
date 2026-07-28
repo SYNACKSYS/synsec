@@ -979,3 +979,145 @@ h2.stacked { margin-top: 1.5rem; }
   }
   .facts dd { margin-bottom: .75rem; }
 }
+
+/* The search box in the sidebar. Finding a secret is not a page you go to, it
+   is something you do from wherever you are. */
+.sidebar-search { margin: 0 .375rem; }
+
+.sidebar-search input {
+  width: 100%;
+  padding: .4rem .625rem;
+  font-size: .875rem;
+  color: var(--text-inverse);
+  background: rgb(255 255 255 / 7%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-search input::placeholder { color: var(--text-inverse-muted); }
+
+.sidebar-search input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  background: rgb(255 255 255 / 12%);
+}
+
+/* Filtering a list already on screen, above the table it narrows. */
+.list-filter {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .75rem;
+}
+
+.list-filter[hidden] { display: none; }
+.list-filter input { max-width: 20rem; }
+
+.filter-count {
+  color: var(--text-muted);
+  font-size: .8125rem;
+}
+
+.search-form {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+
+.search-form input { flex: 1; }
+
+/* Destructive actions inside a list. A red mark on every line trains the eye
+   to stop seeing it, so the colour arrives on hover, when the pointer is
+   already committed - and the confirmation is what actually guards the action. */
+.btn-quiet-danger { color: var(--text-muted); }
+
+.btn-quiet-danger:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+}
+
+/* ---------------------------------------------------------------------------
+   Laiton - a second palette, offered under Paramètres / Apparence.
+
+   Brass and zinc rather than indigo on grey: a painted workshop cabinet, the
+   material this product keeps borrowing its words from - coffre, clé, sceller.
+   Only the variables change; every rule above is untouched, which is what lets
+   a whole second look cost forty lines.
+
+   Placed last on purpose. The class sits on the same element as :root, so the
+   two have equal specificity and the later one wins.
+--------------------------------------------------------------------------- */
+.theme-laiton {
+  --bg: #e7eae4;
+  --sidebar: #191d18;
+  --surface: #fbfcf9;
+  --surface-2: #f2f4ee;
+  --border: #d5dad0;
+  --border-strong: #b8bfb2;
+
+  --text: #191d18;
+  --text-muted: #5b625a;
+  --text-inverse: #eef0ec;
+  --text-inverse-muted: #949c92;
+
+  --accent: #8a5f18;
+  --accent-hover: #6f4c13;
+  --accent-soft: #f5eddd;
+  --accent-text: #ffffff;
+
+  --danger: #8f3018;
+  --danger-soft: #f9ece8;
+  --danger-border: #e5c4b9;
+  --ok: #2c6a5b;
+  --ok-soft: #e8f1ee;
+  --ok-border: #b6d2c9;
+  --warn: #8a5f18;
+  --warn-soft: #f7f0e2;
+  --warn-border: #e0cda3;
+
+  /* Squared off. A key tag is stamped, not rounded. */
+  --radius: 2px;
+  --radius-sm: 2px;
+  --shadow: 0 1px 2px rgb(25 29 24 / 8%);
+  --shadow-lg: 0 4px 14px rgb(25 29 24 / 10%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-laiton {
+    --bg: #14170f;
+    --sidebar: #0d0f0a;
+    --surface: #1c1f18;
+    --surface-2: #22261e;
+    --border: #2e3328;
+    --border-strong: #414737;
+
+    --text: #e8ebe3;
+    --text-muted: #969d8d;
+    --text-inverse: #e8ebe3;
+    --text-inverse-muted: #848b7b;
+
+    --accent: #cf9b3c;
+    --accent-hover: #e0b05a;
+    --accent-soft: #2a2313;
+    --accent-text: #14170f;
+
+    --danger: #e08a72;
+    --danger-soft: #2a1a15;
+    --danger-border: #4a2c22;
+    --ok: #7fc9b2;
+    --ok-soft: #12251f;
+    --ok-border: #24463b;
+    --warn: #cf9b3c;
+    --warn-soft: #2a2313;
+    --warn-border: #4a3c1c;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 45%);
+    --shadow-lg: 0 6px 20px rgb(0 0 0 / 50%);
+  }
+}
+
+/* The one structural liberty the palette takes: a brass edge where the cabinet
+   frame meets the paper, and on whichever entry is current. */
+.theme-laiton .sidebar { border-right: 2px solid var(--accent); }
+.theme-laiton .nav a[aria-current] { box-shadow: inset 2px 0 0 var(--accent); }

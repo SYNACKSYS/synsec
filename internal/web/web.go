@@ -53,6 +53,7 @@ var pageNames = []string{
 	"audit.html",
 	"audit_access.html",
 	"settings.html",
+	"search.html",
 	"serversettings.html",
 }
 
@@ -251,6 +252,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /logout", s.requireLogin(s.doLogout))
 
 	mux.HandleFunc("GET /{$}", s.requireLogin(s.showHome))
+	mux.HandleFunc("GET /recherche", s.requireLogin(s.showSearch))
 	mux.HandleFunc("POST /coffres", s.requireLogin(s.createVault))
 	// A literal segment wins over a wildcard in the standard mux, so this
 	// stays reachable even though it looks like a vault identifier.
@@ -340,6 +342,12 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 	if d, ok := data.(pageData); ok && d.User != nil {
 		if scale := scaleFrom(r); d.Scale == 0 && scale != defaultScale {
 			d.Scale = scale
+		}
+		// Only a palette that differs from the default rides on the page, so
+		// somebody who never chose anything gets the plain stylesheet rather
+		// than a class that resolves to the same thing.
+		if theme := themeFrom(r); theme != defaultTheme {
+			d.Theme = theme
 		}
 		d.CanReadAudit = canReadAuditFrom(r)
 		d.RequireFactor = s.requiresFactor()

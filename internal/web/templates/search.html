@@ -1,0 +1,63 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Recherche</h1>
+    <p class="subtitle">
+      Sur les noms, dans tous les coffres qui te sont accessibles. Les valeurs
+      ne sont pas fouillées : il faudrait les déchiffrer toutes.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="get" action="/recherche" class="search-form">
+      <label for="q" class="visually-hidden">Chercher un secret</label>
+      <input id="q" name="q" type="search" value="{{.Search}}"
+             placeholder="mqtt, box, sauvegarde..." autofocus>
+      <button type="submit" class="btn btn-primary">Chercher</button>
+    </form>
+  </div>
+</div>
+
+{{if .Search}}
+{{if .Shared}}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Nom</th><th>Coffre</th><th>Accès</th><th>Modifié le</th></tr>
+    </thead>
+    <tbody>
+      {{range .Shared}}
+      <tr>
+        <td class="path">
+          <a href="/coffres/{{.VaultID}}/secret?name={{.Name}}">{{.Display}}</a>
+          <span class="slug"><code>{{.Name}}</code></span>
+        </td>
+        <td class="num">{{.VaultName}}</td>
+        <td class="num">{{.Role.Label}}</td>
+        <td class="when">{{date .UpdatedAt}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+{{if .Truncated}}
+<p class="hint">
+  Seuls les {{len .Shared}} premiers résultats sont affichés. Précise ta
+  recherche pour les voir tous.
+</p>
+{{end}}
+{{else}}
+<div class="card empty">
+  <h2>Rien pour « {{.Search}} »</h2>
+  <p>
+    La recherche porte sur le nom lisible et sur l'identifiant technique. Si tu
+    cherches d'après le contenu du secret, ça ne marchera pas : les valeurs
+    restent chiffrées.
+  </p>
+</div>
+{{end}}
+{{end}}
+{{end}}

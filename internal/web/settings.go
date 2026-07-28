@@ -15,7 +15,20 @@ import (
 // change, and an older binary meeting an unknown key just ignores it.
 const (
 	settingScale = "ui.scale"
+	settingTheme = "ui.theme"
 )
+
+// defaultTheme is the palette the interface has always had.
+const defaultTheme = "ardoise"
+
+// offeredThemes are the palettes on offer. A short list for the same reason as
+// the sizes: every one here has been looked at.
+var offeredThemes = []themeRow{
+	{Value: "ardoise", Label: "Ardoise (par défaut)",
+		Note: "Gris et indigo, clair ou sombre selon ton système."},
+	{Value: "laiton", Label: "Laiton",
+		Note: "Zinc et laiton, angles droits. Le vestiaire à clés plutôt que le tableau de bord."},
+}
 
 // defaultScale is the browser's own idea of a comfortable size.
 const defaultScale = 100
@@ -34,10 +47,18 @@ type scaleRow struct {
 	Current bool
 }
 
+// themeRow is one palette on the same page.
+type themeRow struct {
+	Value   string
+	Label   string
+	Note    string
+	Current bool
+}
+
 // showSettings renders the visitor's own preferences.
 func (s *Server) showSettings(w http.ResponseWriter, r *http.Request) {
 	user := userFrom(r)
-	current := scaleFrom(r)
+	scale := scaleFrom(r)
 
 	rows := make([]scaleRow, 0, len(offeredScales))
 	for _, v := range offeredScales {
@@ -45,7 +66,14 @@ func (s *Server) showSettings(w http.ResponseWriter, r *http.Request) {
 		if v == defaultScale {
 			label += " (par défaut)"
 		}
-		rows = append(rows, scaleRow{Value: v, Label: label, Current: v == current})
+		rows = append(rows, scaleRow{Value: v, Label: label, Current: v == scale})
+	}
+
+	current := themeFrom(r)
+	themes := make([]themeRow, 0, len(offeredThemes))
+	for _, t := range offeredThemes {
+		t.Current = t.Value == current
+		themes = append(themes, t)
 	}
 
 	s.render(w, r, "settings.html", http.StatusOK, pageData{
@@ -55,6 +83,7 @@ func (s *Server) showSettings(w http.ResponseWriter, r *http.Request) {
 		CSRF:        csrfFrom(r),
 		Sealed:      s.vault.Sealed(),
 		Scales:      rows,
+		Themes:      themes,
 		SessionIdle: humanDuration(s.sessionIdle),
 		Notice:      r.URL.Query().Get("info"),
 		Error:       r.URL.Query().Get("erreur"),
@@ -72,13 +101,29 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// An absent palette means "leave it alone" rather than "back to the
+	// default": the two settings share one form, and a caller that sends only
+	// the size must not quietly reset the other.
+	theme := strings.TrimSpace(r.PostFormValue("theme"))
+	if theme != "" && !themeOffered(theme) {
+		s.redirectWithError(w, r, back, "Cette palette n'existe pas.")
+		return
+	}
+
 	if err := s.vault.DB().SetUserSetting(
 		r.Context(), user.ID, settingScale, strconv.Itoa(scale)); err != nil {
 		s.fail(w, r, user, err)
 		return
 	}
+	if theme != "" {
+		if err := s.vault.DB().SetUserSetting(
+			r.Context(), user.ID, settingTheme, theme); err != nil {
+			s.fail(w, r, user, err)
+			return
+		}
+	}
 
-	s.redirectWithNotice(w, r, back, "Affichage réglé sur "+strconv.Itoa(scale)+" %.")
+	s.redirectWithNotice(w, r, back, "Apparence enregistrée.")
 }
 
 // showOwnPassword renders the form for changing one's own password.
@@ -182,6 +227,33 @@ func (s *Server) reissueSession(w http.ResponseWriter, r *http.Request, user sto
 
 	s.setSessionCookie(w, token, expiry)
 	return nil
+}
+
+func themeOffered(v string) bool {
+	for _, t := range offeredThemes {
+		if t.Value == v {
+			return true
+		}
+	}
+	return false
+}
+
+// loadTheme reads an account's palette, falling back to the default when the
+// setting is absent or names something this build no longer offers.
+func (s *Server) loadTheme(ctx context.Context, user store.User) string {
+	raw, err := s.vault.DB().UserSetting(ctx, user.ID, settingTheme, "")
+	if err != nil || !themeOffered(raw) {
+		return defaultTheme
+	}
+	return raw
+}
+
+// themeFrom reads the palette resolved by requireLogin for this request.
+func themeFrom(r *http.Request) string {
+	if v, ok := r.Context().Value(ctxTheme).(string); ok && v != "" {
+		return v
+	}
+	return defaultTheme
 }
 
 func scaleOffered(v int) bool {

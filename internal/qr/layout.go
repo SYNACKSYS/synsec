@@ -45,6 +45,42 @@ func (c *Code) drawFunctionPatterns(version int, reserved [][]bool) {
 		c.reserve(c.Size-1-i, 8, reserved)
 		c.reserve(8, c.Size-1-i, reserved)
 	}
+
+	// From version 7 the size can no longer be read from the symbol's own
+	// dimensions alone, so it is written out: eighteen bits, twice, in two
+	// blocks beside the top-right and bottom-left finders.
+	if version >= 7 {
+		c.drawVersion(version, reserved)
+	}
+}
+
+// drawVersion writes the version information block, protected by a BCH code.
+//
+// Unlike the format information there is no mask to apply afterwards: the
+// value depends only on the version, so it is drawn here with the rest of the
+// function patterns.
+func (c *Code) drawVersion(version int, reserved [][]bool) {
+	// BCH(18,6): the remainder of the version shifted up by twelve, divided by
+	// x^12 + x^11 + x^10 + x^9 + x^8 + x^5 + x^2 + 1.
+	remainder := version
+	for i := 0; i < 12; i++ {
+		shifted := remainder << 1
+		if remainder&(1<<11) != 0 {
+			shifted ^= 0x1F25
+		}
+		remainder = shifted
+	}
+	bits := version<<12 | remainder
+
+	for i := 0; i < 18; i++ {
+		dark := bits&(1<<uint(i)) != 0
+		near, far := i/3, c.Size-11+i%3
+
+		// The same eighteen bits twice: a three-wide block under the top-right
+		// finder, and its mirror to the right of the bottom-left one.
+		c.set(far, near, dark, reserved)
+		c.set(near, far, dark, reserved)
+	}
 }
 
 func (c *Code) drawFinder(x, y int, reserved [][]bool) {
@@ -169,23 +205,29 @@ func (c *Code) drawFormat(mask int) {
 
 	bitAt := func(i int) bool { return format&(1<<uint(i)) != 0 }
 
-	// The copy around the top-left finder.
+	// The copy around the top-left finder: the low bits run down column 8,
+	// then the sequence turns the corner and runs left along row 8.
+	//
+	// Which way round matters, and is the one thing here a wrong symbol will
+	// not tell you about: a reader that cannot make sense of this field cannot
+	// find the mask, and gives up before looking at any data at all.
 	for i := 0; i <= 5; i++ {
-		c.Modules[8][i] = bitAt(i)
+		c.Modules[i][8] = bitAt(i)
 	}
-	c.Modules[8][7] = bitAt(6)
+	c.Modules[7][8] = bitAt(6)
 	c.Modules[8][8] = bitAt(7)
-	c.Modules[7][8] = bitAt(8)
+	c.Modules[8][7] = bitAt(8)
 	for i := 9; i <= 14; i++ {
-		c.Modules[14-i][8] = bitAt(i)
+		c.Modules[8][14-i] = bitAt(i)
 	}
 
-	// And the copy split between the other two.
+	// And the copy split between the other two: the low bits along row 8 at
+	// the right, the high bits down column 8 at the bottom.
 	for i := 0; i <= 7; i++ {
-		c.Modules[c.Size-1-i][8] = bitAt(i)
+		c.Modules[8][c.Size-1-i] = bitAt(i)
 	}
 	for i := 8; i <= 14; i++ {
-		c.Modules[8][c.Size-15+i] = bitAt(i)
+		c.Modules[c.Size-15+i][8] = bitAt(i)
 	}
 }
 

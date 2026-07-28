@@ -111,11 +111,23 @@ func (v versionSpec) dataCodewords() int {
 	return v.group1Blocks*v.group1Data + v.group2Blocks*v.group2Data
 }
 
+// countBits is the width of the character count that follows the mode.
+//
+// Byte mode uses eight bits up to version 9 and sixteen from version 10. Get
+// this wrong and every bit after it is off by eight, which is a symbol that
+// scans perfectly and decodes to rubbish.
+func countBits(version int) int {
+	if version >= 10 {
+		return 16
+	}
+	return 8
+}
+
 func smallestVersion(length int) (int, error) {
 	for version := 1; version <= 10; version++ {
 		spec := versions[version]
-		// Four bits of mode, eight of length, four of terminator.
-		if spec.dataCodewords()*8 >= length*8+16 {
+		// Four bits of mode, the count, and four of terminator.
+		if spec.dataCodewords()*8 >= length*8+4+countBits(version)+4 {
 			return version, nil
 		}
 	}
@@ -135,7 +147,7 @@ func encodeData(data []byte, version int) []bool {
 	}
 
 	appendBits(0b0100, 4) // byte mode
-	appendBits(len(data), 8)
+	appendBits(len(data), countBits(version))
 	for _, b := range data {
 		appendBits(int(b), 8)
 	}

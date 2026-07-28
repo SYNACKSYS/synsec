@@ -57,6 +57,13 @@ type pageData struct {
 	// Versions is a secret's history, metadata only.
 	Versions []versionRow
 
+	// Imported is the report of an import: one line per entry read, with what
+	// became of it. Values are deliberately absent.
+	Imported []importRow
+	Written  int
+	Skipped  int
+	Filename string
+
 	// Accounts is the server's user list, on the administration page;
 	// Account is the single one a form acts on.
 	Accounts []accountRow
@@ -406,6 +413,15 @@ type versionRow struct {
 	CreatedAt time.Time
 	CreatedBy string
 	Current   bool
+}
+
+// importRow is one line of an import report: the key as the file wrote it, the
+// identifier derived from it, and what happened.
+type importRow struct {
+	Key    string
+	Name   string
+	Reason string
+	Skip   bool
 }
 
 // auditRow is one line of the journal, already put into words.

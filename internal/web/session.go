@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -126,16 +127,37 @@ func csrfToken(sessionToken string) string {
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
+// maxRequestBytes caps any body the interface accepts.
+//
+// Ordinary forms are a few hundred bytes; the one exception is an imported
+// secrets file. Applied here rather than in each handler, so a body cannot be
+// read at all before the request has proved it belongs to a session.
+const maxRequestBytes = 2 << 20
+
 func validCSRF(r *http.Request, sessionToken string) bool {
-	if err := r.ParseForm(); err != nil {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBytes)
+
+	// A multipart body is not read by ParseForm, so the token would never be
+	// found and every upload would look like a forged request. Parsing it here
+	// also means the handler receives an already-decoded form.
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := r.ParseMultipartForm(multipartMemory); err != nil {
+			return false
+		}
+	} else if err := r.ParseForm(); err != nil {
 		return false
 	}
-	got := r.PostFormValue("csrf")
+
+	got := r.FormValue("csrf")
 	if got == "" {
 		return false
 	}
 	return hmac.Equal([]byte(got), []byte(csrfToken(sessionToken)))
 }
+
+// multipartMemory is how much of an upload is held in memory before the rest
+// spills to a temporary file.
+const multipartMemory = 1 << 20
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{

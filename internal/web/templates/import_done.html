@@ -1,0 +1,49 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}">{{.Vault.Name}}</a><span class="sep">/</span>importer
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Import terminé</h1>
+    <p class="subtitle">
+      {{.Filename}} : {{.Written}} {{plural .Written "secret créé" "secrets créés"}}{{if .Skipped}},
+      {{.Skipped}} {{plural .Skipped "ignoré" "ignorés"}}{{end}}.
+    </p>
+  </div>
+  <div class="actions-row">
+    <a class="btn btn-primary" href="/coffres/{{.Vault.ID}}">Voir le coffre</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr><th>Clé du fichier</th><th>Identifiant</th><th>État</th></tr>
+    </thead>
+    <tbody>
+      {{range .Imported}}
+      <tr>
+        <td>{{.Key}}</td>
+        <td class="path"><code>{{.Name}}</code></td>
+        <td class="num">{{.Reason}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+
+{{if .Skipped}}
+<p class="hint">
+  Les entrées ignorées portaient un identifiant déjà présent dans ce coffre.
+  Pour les écraser, refais l'import en cochant la case prévue - chaque
+  remplacement écrira une nouvelle version, sans effacer la précédente.
+</p>
+{{end}}
+
+<p class="alert alert-danger">
+  Ton fichier d'origine n'a pas été touché : il contient toujours tout, en
+  clair, sur ta machine. Vérifie que les secrets sont bien là, puis efface-le.
+</p>
+{{end}}

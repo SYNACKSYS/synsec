@@ -194,3 +194,79 @@ func unquote(v string) string {
 		return v
 	}
 }
+
+// Item is one entry and what will become of it.
+type Item struct {
+	Entry  Entry
+	Name   string
+	Skip   bool
+	Reason string
+}
+
+// Plan is what an import would do, decided before anything is written.
+type Plan struct {
+	Items []Item
+}
+
+// ToWrite counts the entries that would actually be stored.
+func (p Plan) ToWrite() int {
+	n := 0
+	for _, item := range p.Items {
+		if !item.Skip {
+			n++
+		}
+	}
+	return n
+}
+
+// Skipped counts the entries left alone.
+func (p Plan) Skipped() int { return len(p.Items) - p.ToWrite() }
+
+// States an item can be in, for display.
+const (
+	StateNew      = "nouveau"
+	StateReplaced = "remplacé"
+	StateSkipped  = "existe déjà, ignoré"
+)
+
+// BuildPlan decides what each entry becomes, writing nothing.
+//
+// An identifier already in the vault is left alone unless replace is set.
+// Running an import twice must not quietly write a second version of
+// everything, and the second run is usually a mistake rather than an intent.
+//
+// slugify turns a key into the identifier devices will use. It is passed in so
+// that this package stays about reading files.
+func BuildPlan(entries []Entry, taken map[string]bool, replace bool, slugify func(string) string) (Plan, error) {
+	var plan Plan
+	derived := make(map[string]int)
+
+	for _, e := range entries {
+		name := slugify(e.Key)
+		if name == "" {
+			return Plan{}, fmt.Errorf(
+				"ligne %d : « %s » ne donne aucun identifiant utilisable", e.Line, e.Key)
+		}
+		// Two different keys can slugify to the same identifier; letting one
+		// overwrite the other silently is exactly the kind of loss an import
+		// must not cause.
+		if first, clash := derived[name]; clash {
+			return Plan{}, fmt.Errorf(
+				"lignes %d et %d donnent le même identifiant « %s » : renomme l'une des deux clés",
+				first, e.Line, name)
+		}
+		derived[name] = e.Line
+
+		item := Item{Entry: e, Name: name, Reason: StateNew}
+		if taken[name] {
+			if replace {
+				item.Reason = StateReplaced
+			} else {
+				item.Skip = true
+				item.Reason = StateSkipped
+			}
+		}
+		plan.Items = append(plan.Items, item)
+	}
+	return plan, nil
+}

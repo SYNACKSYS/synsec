@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"synsec/internal/importer"
+	"synsec/internal/store"
 )
 
 func entries(pairs ...string) []importer.Entry {
@@ -19,40 +20,40 @@ func entries(pairs ...string) []importer.Entry {
 // everything: the second run is usually a mistake, not an intent.
 func TestPlanSkipsWhatAlreadyExists(t *testing.T) {
 	taken := map[string]bool{"mqtt_password": true}
-	plan, err := planImport(entries("mqtt_password", "a", "wifi_key", "b"), taken, false)
+	plan, err := importer.BuildPlan(entries("mqtt_password", "a", "wifi_key", "b"), taken, false, store.Slugify)
 	if err != nil {
 		t.Fatalf("planImport: %v", err)
 	}
 
-	if plan.toWrite() != 1 {
-		t.Fatalf("%d entries would be written, want 1", plan.toWrite())
+	if plan.ToWrite() != 1 {
+		t.Fatalf("%d entries would be written, want 1", plan.ToWrite())
 	}
-	if !plan.items[0].skip {
+	if !plan.Items[0].Skip {
 		t.Error("the existing identifier is not skipped")
 	}
-	if plan.items[1].skip {
+	if plan.Items[1].Skip {
 		t.Error("the new identifier is skipped")
 	}
 }
 
 func TestReplaceOverwritesDeliberately(t *testing.T) {
 	taken := map[string]bool{"mqtt_password": true}
-	plan, err := planImport(entries("mqtt_password", "a"), taken, true)
+	plan, err := importer.BuildPlan(entries("mqtt_password", "a"), taken, true, store.Slugify)
 	if err != nil {
 		t.Fatalf("planImport: %v", err)
 	}
-	if plan.toWrite() != 1 || plan.items[0].skip {
+	if plan.ToWrite() != 1 || plan.Items[0].Skip {
 		t.Fatal("-remplacer did not take effect")
 	}
-	if plan.items[0].reason != "remplacé" {
-		t.Fatalf("the state reads %q", plan.items[0].reason)
+	if plan.Items[0].Reason != "remplacé" {
+		t.Fatalf("the state reads %q", plan.Items[0].Reason)
 	}
 }
 
 // Two keys can slugify to the same identifier. Letting one overwrite the other
 // would lose a secret without saying so.
 func TestCollidingKeysAreRefused(t *testing.T) {
-	_, err := planImport(entries("mqtt-password", "a", "mqtt_password", "b"), nil, false)
+	_, err := importer.BuildPlan(entries("mqtt-password", "a", "mqtt_password", "b"), nil, false, store.Slugify)
 	if err == nil {
 		t.Fatal("two keys giving the same identifier were accepted")
 	}
@@ -63,7 +64,7 @@ func TestCollidingKeysAreRefused(t *testing.T) {
 
 // A key made only of punctuation yields nothing addressable.
 func TestKeyWithoutUsableIdentifierIsRefused(t *testing.T) {
-	if _, err := planImport(entries("---", "a"), nil, false); err == nil {
+	if _, err := importer.BuildPlan(entries("---", "a"), nil, false, store.Slugify); err == nil {
 		t.Fatal("a key with no usable identifier was accepted")
 	}
 }
@@ -71,14 +72,14 @@ func TestKeyWithoutUsableIdentifierIsRefused(t *testing.T) {
 // The label keeps the original key, so the interface shows what the file said
 // while devices address the slug.
 func TestOriginalKeyBecomesTheLabel(t *testing.T) {
-	plan, err := planImport(entries("MQTT Password", "a"), nil, false)
+	plan, err := importer.BuildPlan(entries("MQTT Password", "a"), nil, false, store.Slugify)
 	if err != nil {
 		t.Fatalf("planImport: %v", err)
 	}
-	if plan.items[0].name != "mqtt_password" {
-		t.Fatalf("the identifier is %q", plan.items[0].name)
+	if plan.Items[0].Name != "mqtt_password" {
+		t.Fatalf("the identifier is %q", plan.Items[0].Name)
 	}
-	if plan.items[0].entry.Key != "MQTT Password" {
-		t.Fatalf("the original key was lost: %q", plan.items[0].entry.Key)
+	if plan.Items[0].Entry.Key != "MQTT Password" {
+		t.Fatalf("the original key was lost: %q", plan.Items[0].Entry.Key)
 	}
 }

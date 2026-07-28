@@ -31,6 +31,8 @@ var pageNames = []string{
 	"message.html",
 	"vault.html",
 	"vault_new.html",
+	"import.html",
+	"import_done.html",
 	"tokens.html",
 	"token_scope.html",
 	"secret.html",
@@ -164,6 +166,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /coffres/{id}/secret", s.requireLogin(s.saveSecret))
 	mux.HandleFunc("POST /coffres/{id}/secret/supprimer", s.requireLogin(s.deleteSecret))
 	mux.HandleFunc("POST /coffres/{id}/secret/revenir", s.requireLogin(s.revertSecret))
+
+	mux.HandleFunc("GET /coffres/{id}/import", s.requireLogin(s.showImport))
+	mux.HandleFunc("POST /coffres/{id}/import", s.requireLogin(s.runImport))
 
 	mux.HandleFunc("GET /coffres/{id}/appareils", s.requireLogin(s.showTokens))
 	mux.HandleFunc("POST /coffres/{id}/appareils", s.requireLogin(s.createToken))

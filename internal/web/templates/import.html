@@ -1,0 +1,67 @@
+{{define "content"}}
+<p class="crumbs">
+  <a href="/">Mes coffres</a><span class="sep">/</span>
+  <a href="/coffres/{{.Vault.ID}}">{{.Vault.Name}}</a><span class="sep">/</span>importer
+</p>
+
+<div class="page-head">
+  <div>
+    <h1>Importer un fichier</h1>
+    <p class="subtitle">
+      Reprends d'un coup ce qui est aujourd'hui dans un <code>secrets.yaml</code>
+      de Home Assistant ou un fichier <code>.env</code>.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/coffres/{{.Vault.ID}}/import" enctype="multipart/form-data">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="fichier">Fichier</label>
+        <input id="fichier" name="fichier" type="file" required
+               accept=".yaml,.yml,.env,text/plain">
+        <p class="help">
+          Chaque ligne devient un secret : la clé sert de nom, sa version
+          simplifiée sert d'identifiant à tes appareils. Un mégaoctet au plus.
+        </p>
+      </div>
+
+      <div class="field">
+        <label for="format">Format</label>
+        <select id="format" name="format">
+          <option value="">D'après l'extension du fichier</option>
+          <option value="yaml">YAML, comme secrets.yaml</option>
+          <option value="env">Variables, comme .env</option>
+        </select>
+      </div>
+
+      <div class="field field-check">
+        <input id="remplacer" name="remplacer" type="checkbox" value="1">
+        <label for="remplacer">
+          Écraser les identifiants déjà présents dans ce coffre
+        </label>
+      </div>
+
+      <p class="help">
+        Sans cette case, un identifiant déjà pris est laissé tel quel. Relancer
+        un import ne crée donc pas en silence une nouvelle version de tout.
+      </p>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Importer</button>
+        <a class="btn btn-ghost" href="/coffres/{{.Vault.ID}}">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="hint">
+  Le fichier n'est ni conservé ni recopié : il est lu, les valeurs sont
+  chiffrées, et il ne reste rien de lui sur le serveur. Sur ta machine, en
+  revanche, il contient toujours tout en clair - pense à l'effacer une fois
+  l'import vérifié.
+</p>
+{{end}}

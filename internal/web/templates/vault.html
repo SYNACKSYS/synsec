@@ -16,6 +16,7 @@
     <a class="btn btn-secondary" href="/coffres/{{.Vault.ID}}/membres">Membres</a>
     {{end}}
     {{if .CanWrite}}
+    <a class="btn btn-secondary" href="/coffres/{{.Vault.ID}}/import">Importer</a>
     <a class="btn btn-primary" href="/coffres/{{.Vault.ID}}/secret">Ajouter un secret</a>
     {{end}}
   </div>
@@ -81,6 +82,7 @@
   </p>
   {{if .CanWrite}}
   <a class="btn btn-primary" href="/coffres/{{.Vault.ID}}/secret">Ajouter le premier secret</a>
+  <a class="btn btn-secondary" href="/coffres/{{.Vault.ID}}/import">Importer un fichier</a>
   {{end}}
 </div>
 {{end}}

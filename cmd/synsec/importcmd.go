@@ -74,7 +74,7 @@ func runImport(args []string) error {
 			taken[s.Name] = true
 		}
 
-		plan, err := planImport(entries, taken, *replace)
+		plan, err := importer.BuildPlan(entries, taken, *replace, store.Slugify)
 		if err != nil {
 			return err
 		}
@@ -84,19 +84,19 @@ func runImport(args []string) error {
 			fmt.Println("\nEssai : rien n'a été écrit. Relance sans -essai pour importer.")
 			return nil
 		}
-		if plan.toWrite() == 0 {
+		if plan.ToWrite() == 0 {
 			fmt.Println("\nRien à faire.")
 			return nil
 		}
 
 		written := 0
-		for _, item := range plan.items {
-			if item.skip {
+		for _, item := range plan.Items {
+			if item.Skip {
 				continue
 			}
-			loc := store.SecretLocation{ProjectID: p.ID, Env: *env, Name: item.name}
-			if _, err := m.PutSecret(ctx, loc, []byte(item.entry.Value), item.entry.Key, user.Username); err != nil {
-				return fmt.Errorf("écriture de %s : %w", item.name, err)
+			loc := store.SecretLocation{ProjectID: p.ID, Env: *env, Name: item.Name}
+			if _, err := m.PutSecret(ctx, loc, []byte(item.Entry.Value), item.Entry.Key, user.Username); err != nil {
+				return fmt.Errorf("écriture de %s : %w", item.Name, err)
 			}
 			written++
 		}
@@ -108,83 +108,20 @@ func runImport(args []string) error {
 	})
 }
 
-// importItem is one entry and what will become of it.
-type importItem struct {
-	entry  importer.Entry
-	name   string
-	skip   bool
-	reason string
-}
-
-type importPlan struct {
-	items []importItem
-}
-
-func (p importPlan) toWrite() int {
-	n := 0
-	for _, item := range p.items {
-		if !item.skip {
-			n++
-		}
-	}
-	return n
-}
-
-// planImport decides what each entry becomes, without writing anything.
-//
-// An identifier already in the vault is left alone unless -remplacer is given.
-// Running an import twice must not quietly write a second version of
-// everything, and the second run is usually a mistake rather than an intent.
-func planImport(entries []importer.Entry, taken map[string]bool, replace bool) (importPlan, error) {
-	var plan importPlan
-	derived := make(map[string]int)
-
-	for _, e := range entries {
-		name := store.Slugify(e.Key)
-		if name == "" {
-			return importPlan{}, fmt.Errorf(
-				"ligne %d : « %s » ne donne aucun identifiant utilisable", e.Line, e.Key)
-		}
-		// Two different keys can slugify to the same identifier; letting one
-		// overwrite the other silently is exactly the kind of loss an import
-		// must not cause.
-		if first, clash := derived[name]; clash {
-			return importPlan{}, fmt.Errorf(
-				"lignes %d et %d donnent le même identifiant « %s » : renomme l'une des deux clés",
-				first, e.Line, name)
-		}
-		derived[name] = e.Line
-
-		item := importItem{entry: e, name: name}
-		if taken[name] {
-			if replace {
-				item.reason = "remplacé"
-			} else {
-				item.skip = true
-				item.reason = "existe déjà, ignoré"
-			}
-		} else {
-			item.reason = "nouveau"
-		}
-		plan.items = append(plan.items, item)
-	}
-	return plan, nil
-}
-
 // printPlan shows what will happen. Values are never printed: the point of the
 // exercise is to stop them being readable.
-func printPlan(path, format, vaultName string, plan importPlan) {
-	fmt.Printf("%s (%s) : %d entrée(s) vers « %s »\n\n", path, format, len(plan.items), vaultName)
+func printPlan(path, format, vaultName string, plan importer.Plan) {
+	fmt.Printf("%s (%s) : %d entrée(s) vers « %s »\n\n", path, format, len(plan.Items), vaultName)
 
 	w := newTabWriter()
 	fmt.Fprintln(w, "CLÉ\tIDENTIFIANT\tÉTAT")
-	for _, item := range plan.items {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", item.entry.Key, item.name, item.reason)
+	for _, item := range plan.Items {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", item.Entry.Key, item.Name, item.Reason)
 	}
 	w.Flush()
 
-	skipped := len(plan.items) - plan.toWrite()
-	summary := fmt.Sprintf("\n%d à écrire", plan.toWrite())
+	skipped := len(plan.Items) - plan.ToWrite()
+	summary := fmt.Sprintf("\n%d à écrire", plan.ToWrite())
 	if skipped > 0 {
 		summary += fmt.Sprintf(", %d ignoré(s)", skipped)
 	}

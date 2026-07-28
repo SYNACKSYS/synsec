@@ -52,7 +52,14 @@ synsec coffre supprimer Maison -confirmer Maison
 ### Reprendre ce que tu as déjà
 
 Personne ne recopie trente secrets à la main. Si tes mots de passe sont
-aujourd'hui dans un `secrets.yaml` de Home Assistant ou dans un `.env` :
+aujourd'hui dans un `secrets.yaml` de Home Assistant ou dans un `.env`, le
+bouton **Importer** sur la page du coffre ouvre un formulaire : tu choisis le
+fichier, et un compte rendu te dit ce qui a été créé, ligne par ligne.
+
+Le fichier n'est ni conservé ni recopié sur le serveur : il est lu, les valeurs
+sont chiffrées, et il n'en reste rien.
+
+En ligne de commande, avec un aperçu avant écriture :
 
 ```
 synsec import Maison secrets.yaml -essai

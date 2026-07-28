@@ -70,6 +70,28 @@ l'ancienne valeur reste dans l'historique, elle n'est pas écrasée.
 Le nom se change librement. L'identifiant est en lecture seule - pour en
 changer, crée le secret sous un nouvel identifiant puis supprime l'ancien.
 
+### Revenir à une valeur précédente
+
+Sous le formulaire, la section **Historique** liste les versions : leur numéro,
+leur date, et qui les a écrites. Le bouton **Rétablir** ramène une ancienne
+valeur.
+
+Rien n'est effacé. Revenir à la version 2 écrit une **version 5** contenant la
+même valeur : l'historique reste complet, et le journal d'audit garde la trace
+du retour en arrière. Un retour silencieux, qui réécrirait le passé, serait
+précisément ce qu'un journal est censé empêcher.
+
+Les valeurs anciennes ne s'affichent pas dans la liste. Les montrer voudrait
+dire les déchiffrer toutes à l'ouverture de la page, ce qui reviendrait à lire
+bien plus que ce qui a été demandé.
+
+En ligne de commande :
+
+```
+synsec secret versions Maison mot_de_passe_mqtt
+synsec secret revenir  Maison mot_de_passe_mqtt 2
+```
+
 ### Partager
 
 Deux niveaux, selon ce que tu veux ouvrir.

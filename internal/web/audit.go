@@ -32,6 +32,8 @@ var auditLabels = map[string]string{
 	"secret.read":    "Lecture d'un secret",
 	"secret.write":   "Écriture d'un secret",
 	"secret.delete":  "Suppression d'un secret",
+	"secret.revert":  "Retour à une version",
+	"vault.rotate":   "Clé de coffre renouvelée",
 	"vault.create":   "Création d'un coffre",
 	"vault.delete":   "Suppression d'un coffre",
 	"member.grant":   "Accès accordé",

@@ -29,6 +29,8 @@ func runVault(args []string) error {
 		return runVaultUnshare(args[1:])
 	case "supprimer", "rm", "delete":
 		return runVaultDelete(args[1:])
+	case "rotation", "rotate":
+		return runVaultRotate(args[1:])
 	case "-h", "--help", "help":
 		return usageVault()
 	default:
@@ -43,6 +45,7 @@ synsec coffre - gère les coffres
   synsec coffre list
   synsec coffre create    <nom> [-description "..."]
   synsec coffre supprimer <coffre> -confirmer <nom>
+  synsec coffre rotation  <coffre>
 
   synsec coffre partager  <coffre> <utilisateur> [-role lecture|écriture|gestion]
   synsec coffre membres   <coffre>
@@ -147,6 +150,54 @@ func runVaultDelete(args []string) error {
 		auditCLI(ctx, m.DB(), user, "vault.delete", p.Name)
 		fmt.Printf("Coffre « %s » supprimé, avec %d secret(s) et leurs appareils.\n",
 			p.Name, len(secrets))
+		return nil
+	})
+}
+
+// runVaultRotate re-encrypts a whole vault under a fresh key.
+//
+// Every version of every secret is rewritten, not only the current ones: old
+// versions still readable under the old key would mean the rotation rotated
+// nothing.
+func runVaultRotate(args []string) error {
+	fs := flag.NewFlagSet("coffre rotation", flag.ExitOnError)
+	dataDir := fs.String("data", "", "dossier de données")
+	who := identityFlag(fs)
+	if err := fs.Parse(permute(fs, args)); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage : synsec coffre rotation <coffre>")
+	}
+
+	return withManager(*dataDir, func(ctx context.Context, m *vault.Manager) error {
+		user, err := authenticate(ctx, m.DB(), *who)
+		if err != nil {
+			return err
+		}
+		p, err := resolveVault(ctx, m.DB(), fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		// Re-encrypting everything is a right over the vault, not over any one
+		// secret: a share on a single entry does not extend to the key.
+		if err := requireVaultRole(ctx, m.DB(), user, p, store.RoleManager); err != nil {
+			return err
+		}
+
+		secrets, err := m.DB().ListSecrets(ctx, p.ID, store.DefaultEnvironment)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Rechiffrement de « %s »...\n", p.Name)
+		if err := m.RotateVaultKey(ctx, p.ID); err != nil {
+			return err
+		}
+
+		auditCLI(ctx, m.DB(), user, "vault.rotate", p.Name)
+		fmt.Printf("Fait : %d secret(s) et tout leur historique sont sous une clé neuve.\n", len(secrets))
+		fmt.Println("Les jetons et les mots de passe ne changent pas ; rien à reconfigurer.")
 		return nil
 	})
 }

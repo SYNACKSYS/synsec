@@ -54,6 +54,9 @@ type pageData struct {
 	Networks []networkRow
 	Host     string
 
+	// Versions is a secret's history, metadata only.
+	Versions []versionRow
+
 	// Accounts is the server's user list, on the administration page;
 	// Account is the single one a form acts on.
 	Accounts []accountRow
@@ -393,6 +396,16 @@ type tokenRow struct {
 	Addresses  string
 	ExpiresAt  time.Time
 	LastUsedAt time.Time
+}
+
+// versionRow is one entry in a secret's history. It carries no value: listing
+// the past must not decrypt it, or opening the page would quietly read every
+// version a secret ever had.
+type versionRow struct {
+	Version   int64
+	CreatedAt time.Time
+	CreatedBy string
+	Current   bool
 }
 
 // auditRow is one line of the journal, already put into words.

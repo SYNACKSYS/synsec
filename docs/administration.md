@@ -259,13 +259,26 @@ ce que l'intrus a consulté - un journal des seules écritures serait aveugle à
 
 ## Faire tourner une clé de coffre
 
-Si tu soupçonnes qu'une clé a fui, `RotateVaultKey` réchiffre **toutes les
-versions de tous les secrets** d'un coffre sous une clé neuve, en une seule
-transaction.
+Si tu soupçonnes qu'une clé a fui :
 
-Ce n'est pas encore exposé en ligne de commande. L'historique est réchiffré lui
-aussi : des versions anciennes qui resteraient lisibles sous l'ancienne clé
-signifieraient que la rotation n'a rien rotationné.
+```
+synsec coffre rotation Maison
+```
+
+**Toutes les versions de tous les secrets** du coffre sont réchiffrées sous une
+clé neuve, en une seule transaction. L'historique y passe aussi : des versions
+anciennes qui resteraient lisibles sous l'ancienne clé signifieraient que la
+rotation n'a rien rotationné.
+
+Ce qui ne change pas : les valeurs, les identifiants, les jetons des appareils
+et les mots de passe des comptes. Rien à reconfigurer nulle part, la rotation
+est invisible depuis l'extérieur.
+
+Elle demande la gestion du coffre. Un partage sur un seul secret ne s'étend pas
+à sa clé.
+
+Sur un gros coffre, la commande peut prendre quelques secondes : elle
+déchiffre et rechiffre chaque version, une par une.
 
 ## Le service
 

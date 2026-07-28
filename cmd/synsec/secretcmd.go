@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"synsec/internal/store"
@@ -26,6 +27,10 @@ func runSecret(args []string) error {
 		return runSecretList(args[1:])
 	case "rm", "delete":
 		return runSecretRemove(args[1:])
+	case "versions", "historique":
+		return runSecretVersions(args[1:])
+	case "revenir", "revert":
+		return runSecretRevert(args[1:])
 	case "reseau", "réseau", "network":
 		return runSecretNetwork(args[1:])
 	case "partager", "share":
@@ -49,6 +54,9 @@ synsec secret - gère les secrets d'un coffre
   synsec secret get  <coffre> <nom>
   synsec secret list <coffre>
   synsec secret rm   <coffre> <nom>
+
+  synsec secret versions <coffre> <nom>
+  synsec secret revenir  <coffre> <nom> <version>
 
   synsec secret partager <coffre> <nom> <utilisateur> [-role lecture|écriture]
   synsec secret partages <coffre> <nom>
@@ -258,6 +266,101 @@ func runSecretRemove(args []string) error {
 
 		auditCLI(ctx, db, user, "secret.delete", fs.Arg(1))
 		fmt.Printf("%s supprimé de « %s », avec tout son historique.\n", fs.Arg(1), p.Name)
+		return nil
+	})
+}
+
+// runSecretVersions lists a secret's history.
+//
+// Metadata only: no version is decrypted. Listing the past must not amount to
+// reading it, and a command that opened every value to print a table would say
+// exactly that in the audit log.
+func runSecretVersions(args []string) error {
+	fs := flag.NewFlagSet("secret versions", flag.ExitOnError)
+	dataDir := fs.String("data", "", "dossier de données")
+	env := fs.String("env", store.DefaultEnvironment, "environnement")
+	who := identityFlag(fs)
+	if err := fs.Parse(permute(fs, args)); err != nil {
+		return err
+	}
+	if fs.NArg() != 2 {
+		return errors.New("usage : synsec secret versions <coffre> <nom>")
+	}
+
+	return withStore(*dataDir, func(ctx context.Context, db *store.DB) error {
+		p, err := resolveVault(ctx, db, fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		user, err := authenticate(ctx, db, *who)
+		if err != nil {
+			return err
+		}
+		secret, err := requireSecretRole(ctx, db, user, p, *env, fs.Arg(1), store.RoleReader)
+		if err != nil {
+			return err
+		}
+
+		versions, err := db.ListVersions(ctx, secret.ID)
+		if err != nil {
+			return err
+		}
+
+		w := newTabWriter()
+		fmt.Fprintln(w, "VERSION\tENREGISTRÉE LE\tPAR\t")
+		for _, v := range versions {
+			current := ""
+			if v.Version == secret.CurrentVersion {
+				current = "en cours"
+			}
+			fmt.Fprintf(w, "v%d\t%s\t%s\t%s\n",
+				v.Version, formatTime(v.CreatedAt), v.CreatedBy, current)
+		}
+		return w.Flush()
+	})
+}
+
+// runSecretRevert brings an old value back as a new version.
+func runSecretRevert(args []string) error {
+	fs := flag.NewFlagSet("secret revenir", flag.ExitOnError)
+	dataDir := fs.String("data", "", "dossier de données")
+	env := fs.String("env", store.DefaultEnvironment, "environnement")
+	who := identityFlag(fs)
+	if err := fs.Parse(permute(fs, args)); err != nil {
+		return err
+	}
+	if fs.NArg() != 3 {
+		return errors.New("usage : synsec secret revenir <coffre> <nom> <version>")
+	}
+
+	version, err := strconv.ParseInt(fs.Arg(2), 10, 64)
+	if err != nil {
+		return fmt.Errorf("« %s » n'est pas un numéro de version", fs.Arg(2))
+	}
+
+	return withManager(*dataDir, func(ctx context.Context, m *vault.Manager) error {
+		p, err := resolveVault(ctx, m.DB(), fs.Arg(0))
+		if err != nil {
+			return err
+		}
+		user, err := authenticate(ctx, m.DB(), *who)
+		if err != nil {
+			return err
+		}
+		if _, err := requireSecretRole(ctx, m.DB(), user, p, *env, fs.Arg(1), store.RoleWriter); err != nil {
+			return err
+		}
+
+		loc := store.SecretLocation{ProjectID: p.ID, Env: *env, Name: fs.Arg(1)}
+		restored, err := m.RevertSecret(ctx, loc, version, user.Username)
+		if err != nil {
+			return err
+		}
+
+		auditCLI(ctx, m.DB(), user, "secret.revert", fs.Arg(1))
+		fmt.Printf("Valeur de la version %d rétablie, enregistrée en version %d.\n",
+			version, restored.CurrentVersion)
+		fmt.Println("L'historique est intact : rien n'a été effacé.")
 		return nil
 	})
 }

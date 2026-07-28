@@ -240,6 +240,15 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// The history, metadata only. Listing it decrypts nothing: a page that
+	// opened every past version to display a list would read far more than
+	// the visitor asked for, and say so in the log.
+	versions, err := s.versionsOf(r, secret)
+	if err != nil {
+		s.fail(w, r, user, err)
+		return
+	}
+
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.read", Target: secret.Name,
@@ -262,8 +271,72 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request) {
 		CanManage:   role.AtLeast(store.RoleManager),
 		CanSeeVault: canSeeVault,
 		Networks:    networks,
+		Versions:    versions,
 		Back:        back,
 	})
+}
+
+// versionsOf reads a secret's history for display.
+func (s *Server) versionsOf(r *http.Request, secret store.Secret) ([]versionRow, error) {
+	found, err := s.vault.DB().ListVersions(r.Context(), secret.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]versionRow, 0, len(found))
+	for _, v := range found {
+		rows = append(rows, versionRow{
+			Version:   v.Version,
+			CreatedAt: v.CreatedAt,
+			CreatedBy: v.CreatedBy,
+			Current:   v.Version == secret.CurrentVersion,
+		})
+	}
+	return rows, nil
+}
+
+// revertSecret brings an old value back as a new version.
+//
+// The history is never rewritten: coming back to version 2 writes a version 5
+// holding the same value. Someone reading the log afterwards sees that it
+// happened, when, and by whose hand - which a silent rollback would hide.
+func (s *Server) revertSecret(w http.ResponseWriter, r *http.Request) {
+	user := userFrom(r)
+
+	name := strings.TrimSpace(r.PostFormValue("name"))
+	vault, secret, _, ok := s.requireSecret(w, r, name, store.RoleWriter)
+	if !ok {
+		return
+	}
+	back := "/coffres/" + vault.ID + "/secret?name=" + urlEncode(secret.Name)
+
+	version, err := strconv.ParseInt(strings.TrimSpace(r.PostFormValue("version")), 10, 64)
+	if err != nil {
+		s.redirectWithError(w, r, back, "Version illisible.")
+		return
+	}
+	if version == secret.CurrentVersion {
+		s.redirectWithError(w, r, back, "C'est déjà la version en cours.")
+		return
+	}
+
+	restored, err := s.vault.RevertSecret(r.Context(), secret.SecretLocation, version, user.Username)
+	if err != nil {
+		if errors.Is(err, store.ErrNotFound) || strings.Contains(err.Error(), "n'a pas de version") {
+			s.redirectWithError(w, r, back, "Cette version n'existe pas.")
+			return
+		}
+		s.fail(w, r, user, err)
+		return
+	}
+
+	s.audit(r, store.AuditEntry{
+		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
+		Action: "secret.revert", Target: secret.Name,
+		Detail: "v" + strconv.FormatInt(version, 10) + " reprise en v" + strconv.FormatInt(restored.CurrentVersion, 10),
+	})
+	s.redirectWithNotice(w, r, back, "Valeur de la version "+strconv.FormatInt(version, 10)+
+		" rétablie, enregistrée en version "+strconv.FormatInt(restored.CurrentVersion, 10)+".")
 }
 
 // takenNames lists the identifiers already used in a vault, so a derived slug

@@ -163,6 +163,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /coffres/{id}/secret", s.requireLogin(s.showSecret))
 	mux.HandleFunc("POST /coffres/{id}/secret", s.requireLogin(s.saveSecret))
 	mux.HandleFunc("POST /coffres/{id}/secret/supprimer", s.requireLogin(s.deleteSecret))
+	mux.HandleFunc("POST /coffres/{id}/secret/revenir", s.requireLogin(s.revertSecret))
 
 	mux.HandleFunc("GET /coffres/{id}/appareils", s.requireLogin(s.showTokens))
 	mux.HandleFunc("POST /coffres/{id}/appareils", s.requireLogin(s.createToken))

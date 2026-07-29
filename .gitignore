@@ -21,3 +21,6 @@ root.key
 # Systèmes
 Thumbs.db
 .DS_Store
+
+# Archive de travail deposee a la racine, hors du depot.
+/SYNSEC.zip

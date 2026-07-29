@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -219,5 +220,67 @@ func TestPlainRequestSurvivesSilentConnections(t *testing.T) {
 
 	if resp.StatusCode != http.StatusPermanentRedirect {
 		t.Fatalf("status is %d, want 308", resp.StatusCode)
+	}
+}
+
+// The plain-HTTP listener answers with a redirect built from the Host header,
+// which the caller chooses. These hold that header to the shape of a host.
+
+func TestTheRedirectRefusesAnImplausibleHost(t *testing.T) {
+	handler := httpsRedirect()
+
+	for _, host := range []string{
+		"synsec.maison/@ailleurs.example",
+		"synsec.maison@ailleurs.example",
+		"ailleurs.example/",
+		"synsec.maison\\@ailleurs.example",
+		"synsec.maison\nX-Injecte: 1",
+		"",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "http://exemple/", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if location := rec.Header().Get("Location"); location != "" {
+			t.Errorf("the host %q produced a redirect to %q", host, location)
+		}
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("the host %q returned %d, want 400", host, rec.Code)
+		}
+	}
+}
+
+func TestTheRedirectKeepsAnOrdinaryHost(t *testing.T) {
+	handler := httpsRedirect()
+
+	for host, want := range map[string]string{
+		"synsec.maison":      "https://synsec.maison/coffres",
+		"synsec.maison:8787": "https://synsec.maison:8787/coffres",
+		"192.168.1.20:8787":  "https://192.168.1.20:8787/coffres",
+		"[::1]:8787":         "https://[::1]:8787/coffres",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "http://exemple/coffres", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if got := rec.Header().Get("Location"); got != want {
+			t.Errorf("the host %q redirected to %q, want %q", host, got, want)
+		}
+	}
+}
+
+// A permanent redirect is cacheable by default, and this one depends on a
+// header the caller chooses. Behind a shared cache, that pair is how one
+// visitor's Host header becomes everyone's destination.
+func TestTheRedirectIsNotCacheable(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://exemple/", nil)
+	req.Host = "synsec.maison"
+	rec := httptest.NewRecorder()
+	httpsRedirect().ServeHTTP(rec, req)
+
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Fatalf("Cache-Control is %q, want no-store", got)
 	}
 }

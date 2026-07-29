@@ -37,6 +37,17 @@
       .replace(/=+$/, "");
   }
 
+  // goTo follows a destination the server chose, but only if it is a path on
+  // this site. The server is the only writer of that field today; this is what
+  // keeps that true the day somebody makes it depend on something else.
+  function goTo(path) {
+    if (typeof path !== "string" || path.charAt(0) !== "/" || path.charAt(1) === "/") {
+      window.location = "/";
+      return;
+    }
+    window.location = path;
+  }
+
   function showError(message) {
     var box = document.querySelector("[data-webauthn-error]");
     if (!box) {
@@ -130,7 +141,7 @@
         });
       })
       .then(function (result) {
-        window.location = result.redirect;
+        goTo(result.redirect);
       })
       .catch(function (error) {
         showError(explain(error));
@@ -169,7 +180,7 @@
         });
       })
       .then(function (result) {
-        window.location = result.redirect;
+        goTo(result.redirect);
       })
       .catch(function (error) {
         showError(explain(error));

@@ -52,6 +52,12 @@ func NewSessionToken() (token string, hash []byte, err error) {
 // SHA-256 for the same reason as service tokens: the input is high-entropy
 // random, so there is nothing for a slow hash to protect against, and this
 // runs on every single request a signed-in browser makes.
+//
+// A bare digest rather than a keyed one on purpose. This is a lookup key, not
+// a message authentication code: there is no secret prefix, nothing is
+// authenticated by the result, and appending to a token yields a row that does
+// not exist. Where a MAC is what is wanted - the CSRF token, the pending
+// sign-in - the code uses HMAC.
 func HashSessionToken(token string) []byte {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(token)))
 	return sum[:]

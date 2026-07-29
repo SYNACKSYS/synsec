@@ -148,11 +148,13 @@ func WithSessionIdle(d time.Duration) Option {
 // Option configures a Server.
 type Option func(*Server)
 
-// InsecureCookies allows the session cookie over plain HTTP.
+// insecureCookies allows the session cookie over plain HTTP.
 //
-// For tests only. Nothing in the server ever calls it, because the server
-// never listens without TLS.
-func InsecureCookies() Option {
+// For tests only, and unexported so that it is not even reachable from
+// outside: an exported switch that turns off a cookie's protection is a switch
+// somebody eventually flips. The tests live in this package, so nothing is
+// lost by keeping it here.
+func insecureCookies() Option {
 	return func(s *Server) { s.secureCookies = false }
 }
 

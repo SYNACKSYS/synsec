@@ -60,7 +60,7 @@ func newHarness(t *testing.T, opts ...Option) *harness {
 	}
 
 	// The test server speaks plain HTTP, so a Secure cookie would be dropped.
-	ui, err := New(m, append([]Option{InsecureCookies()}, opts...)...)
+	ui, err := New(m, append([]Option{insecureCookies()}, opts...)...)
 	if err != nil {
 		t.Fatalf("web.New: %v", err)
 	}

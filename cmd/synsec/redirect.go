@@ -198,8 +198,12 @@ func (c *peekedConn) Read(b []byte) (int, error) {
 // the same address over TLS, and answers nothing else.
 func httpsRedirect() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The destination is built from the Host header, which the caller
+		// chooses. A header holding "evil.example@" or "evil.example/" would
+		// turn this into a redirect somewhere else entirely, so it is checked
+		// for the shape of a host rather than trusted for being present.
 		host := r.Host
-		if host == "" {
+		if !plausibleHost(host) {
 			// Nothing else is known about where the caller meant to go.
 			http.Error(w, "SYNSEC ne répond qu'en HTTPS.", http.StatusBadRequest)
 			return
@@ -208,9 +212,36 @@ func httpsRedirect() http.Handler {
 		// Same host and port, since TLS is served on this very listener.
 		target := "https://" + host + r.URL.RequestURI()
 
+		// A permanent redirect is cacheable by default, and this one depends
+		// on a header the caller controls. Behind a shared cache that pair is
+		// how one visitor's Host header becomes everyone's destination.
+		w.Header().Set("Cache-Control", "no-store")
+
 		// 308 rather than 301: it preserves the method, so a device posting a
 		// secret retries as a POST instead of silently turning it into a GET.
 		w.Header().Set("Connection", "close")
 		http.Redirect(w, r, target, http.StatusPermanentRedirect)
 	})
+}
+
+// plausibleHost reports whether a Host header looks like a name and a port and
+// nothing more.
+//
+// Letters, digits, dots, dashes, and the colon and brackets an IPv6 address
+// needs. Everything else - the slash that starts a new path, the at sign that
+// hides one host behind another, the backslash some browsers treat as a slash,
+// anything that is not printable ASCII - is refused.
+func plausibleHost(host string) bool {
+	if host == "" || len(host) > 255 {
+		return false
+	}
+	for _, c := range host {
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case c == '.', c == '-', c == ':', c == '[', c == ']':
+		default:
+			return false
+		}
+	}
+	return true
 }

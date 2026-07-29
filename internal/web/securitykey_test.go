@@ -592,7 +592,7 @@ func TestThePolicyIsRemembered(t *testing.T) {
 	})
 
 	// A second server over the same database, the way a restart would be.
-	again, err := New(h.manager, InsecureCookies())
+	again, err := New(h.manager, insecureCookies())
 	if err != nil {
 		t.Fatalf("web.New: %v", err)
 	}

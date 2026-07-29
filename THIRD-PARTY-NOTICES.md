@@ -2,7 +2,7 @@
 
 SYNSEC est distribué sous licence AGPL-3.0 (voir `LICENSE`). Il incorpore les
 bibliothèques ci-dessous, chacune sous licence BSD à trois clauses, qui exige
-que leur avis de copyright accompagne toute distribution — y compris celle
+que leur avis de copyright accompagne toute distribution - y compris celle
 d'un binaire compilé.
 
 La BSD à trois clauses est permissive : elle se combine sans difficulté avec

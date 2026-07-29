@@ -108,7 +108,7 @@ identifiant technique sert aux appareils. `mqtt_password` reste
 
 Ce que l'import refuse plutôt que de deviner :
 
-- un fichier **imbriqué**, avec des niveaux — ce n'est pas la forme d'un
+- un fichier **imbriqué**, avec des niveaux - ce n'est pas la forme d'un
   `secrets.yaml`, et inventer des noms pour ses branches créerait des secrets
   que tu n'as pas demandés ;
 - une **clé en double**, qui ferait perdre l'une des deux valeurs sans le dire ;

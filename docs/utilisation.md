@@ -33,11 +33,10 @@ secrets précis.
 reconnaîtras d'un coup d'œil. Tu en deviens le propriétaire et le gestionnaire.
 
 Le nom fait 60 caractères au maximum. Sont acceptés les lettres accentuées, les
-chiffres, les espaces, l'apostrophe, et `- _ . , ( ) @ $ &`. Sont refusés les
-accolades, les deux-points, les barres obliques, les chevrons, les accents
-graves, les guillemets et tout caractère de contrôle : ce qui compose une
-charge d'attaque et n'a rien à faire dans un libellé. La description est bornée
-à 200 caractères.
+chiffres, les espaces, l'apostrophe, et `- _ . , ( ) [ ] { } @ $ &`. Sont
+refusés les deux-points, les barres obliques, les pourcents, les chevrons, les
+accents graves, les guillemets et tout caractère de contrôle. La description est
+bornée à 200 caractères.
 
 ### Retrouver un secret
 

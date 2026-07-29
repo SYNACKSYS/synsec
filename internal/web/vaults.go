@@ -554,7 +554,7 @@ func vaultNameProblem(err error) string {
 			strconv.Itoa(store.MaxVaultDescriptionLength) + " caractères au maximum."
 	default:
 		return "Ce nom contient un caractère qui n'y a pas sa place. " +
-			"Lettres, chiffres, espaces, et - _ . , ( ) @ $ & seulement."
+			"Lettres, chiffres, espaces, et - _ . , ( ) [ ] { } @ $ & seulement."
 	}
 }
 

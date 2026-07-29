@@ -21,17 +21,18 @@ const DefaultEnvironment = "prod"
 //
 // A vault name is a label a person reads, not an identifier a script uses, so
 // it is far more permissive than a secret's name: accents, spaces and the
-// apostrophes French is full of all belong. What it refuses is everything that
-// has no business in a label and every business in an attack payload - braces,
-// backticks, angle brackets, quotes, pipes, and any control character.
+// apostrophes French is full of all belong.
 //
-// The at sign, the dollar and the ampersand are allowed: they turn up in real
-// labels - "Sauvegardes @ maison", "Domotique & caméras" - and none of them is
-// dangerous on its own here, since nothing in this server passes a vault name
-// to a shell or to an interpolating template engine. What made the payloads
-// payloads was the punctuation around them, and braces, colons, slashes,
-// percent signs, angle brackets, backticks and quotes all stay refused. A name
-// cannot become "${jndi:ldap://...}" without them.
+// Brackets, braces, the at sign, the dollar and the ampersand are allowed: they
+// turn up in real labels - "Sauvegardes @ maison", "Domotique & caméras",
+// "Coffre [essai]" - and none of them is dangerous on its own here, since
+// nothing in this server passes a vault name to a shell or to a template
+// engine that interpolates.
+//
+// What made the scan's payloads payloads is the rest of their punctuation, and
+// that stays out: colons, slashes, percent signs, angle brackets, backticks,
+// quotes, and every control character. A name still cannot become
+// "${jndi:ldap://...}" or "<script>", whichever brackets it is given.
 //
 // The rule is a list of what is allowed rather than of what is not. A list of
 // forbidden characters is a list somebody eventually finds a gap in; this one
@@ -88,7 +89,7 @@ func vaultNameRune(r rune) bool {
 		return true
 	}
 	switch r {
-	case ' ', '-', '_', '\'', '.', ',', '(', ')', '@', '$', '&':
+	case ' ', '-', '_', '\'', '.', ',', '(', ')', '[', ']', '{', '}', '@', '$', '&':
 		return true
 	case '’': // the typographic apostrophe a phone keyboard produces
 		return true

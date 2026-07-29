@@ -412,6 +412,8 @@ func TestVaultNameAcceptsOrdinaryNames(t *testing.T) {
 		"Domotique & caméras",
 		"Sauvegardes @ maison",
 		"Budget $ 2026",
+		"Coffre [essai]",
+		"Maison {2026}",
 		"Maison d’Alice",
 	} {
 		if err := ValidVaultName(name); err != nil {

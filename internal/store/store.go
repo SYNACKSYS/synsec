@@ -101,6 +101,18 @@ func dsn(path string) string {
 		// NORMAL is the documented safe choice under WAL: a crash can cost the
 		// last transaction, never the integrity of the database.
 		"synchronous(NORMAL)",
+		// Freed pages are overwritten instead of merely marked reusable.
+		//
+		// What sits in them is ciphertext, so this is not what stands between
+		// a stolen disk and the secrets - the vault key is. It is what makes
+		// deletion mean deletion. Without it a secret removed because it
+		// leaked stays readable to anyone holding the key, and a vault
+		// rotation leaves every old ciphertext lying in the file, still
+		// readable under the very key the rotation was meant to retire.
+		//
+		// The cost is writing zeroes over freed pages. On a household database
+		// of a few hundred secrets it is not measurable.
+		"secure_delete(ON)",
 	}
 
 	q := make(url.Values, len(pragmas))

@@ -44,7 +44,7 @@ synsec coffre - gère les coffres
 
   synsec coffre list
   synsec coffre create    <nom> [-description "..."]
-  synsec coffre supprimer <coffre> -confirmer <nom|identifiant>
+  synsec coffre supprimer <coffre> -confirmer <nom|identifiant> -user <nom>
   synsec coffre rotation  <coffre>
 
   synsec coffre partager  <coffre> <utilisateur> [-role lecture|écriture|gestion]
@@ -107,16 +107,44 @@ func runVaultDelete(args []string) error {
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
+	// Checked before the argument count, because this mistake is what breaks
+	// the count: "-confirmer -user cyril" hands the flag its own neighbour,
+	// leaves "cyril" as a second positional, and the complaint that follows
+	// points at the wrong thing entirely.
+	if c := strings.TrimSpace(*confirm); strings.HasPrefix(c, "-") {
+		return fmt.Errorf("-confirmer a pris %q pour valeur : il en manque une juste après\n"+
+			"        écris :  synsec coffre supprimer <coffre> -confirmer <coffre> -user <nom>", c)
+	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage : synsec coffre supprimer <coffre> -confirmer <nom|identifiant>")
+		return fmt.Errorf("usage : synsec coffre supprimer <coffre> -confirmer <nom|identifiant> -user <nom>")
 	}
 
 	return withManager(*dataDir, func(ctx context.Context, m *vault.Manager) error {
-		user, err := authenticate(ctx, m.DB(), *who)
+		// Everything answerable without a credential is answered first. Nobody
+		// should type a password only to be told they misspelt the vault or
+		// forgot the confirmation - and vault names are already readable with
+		// "synsec coffre list", which asks for nothing, so this order tells an
+		// unauthenticated caller nothing it could not already see.
+		p, err := resolveVault(ctx, m.DB(), fs.Arg(0))
 		if err != nil {
 			return err
 		}
-		p, err := resolveVault(ctx, m.DB(), fs.Arg(0))
+
+		// The name typed out, like the interface asks for. Nobody writes a
+		// vault's name by accident, and this is the one command no backup
+		// taken afterwards can undo.
+		//
+		// The identifier is accepted just as well, because a name is not
+		// always typeable. A vault created by something that fills every field
+		// with an attack payload carries braces, backticks and quotes, and no
+		// shell on earth lets that be repeated verbatim. The identifier proves
+		// the same thing - that this exact vault was meant - and is always
+		// sixteen plain characters.
+		if err := checkConfirmation(*confirm, p.Name, p.ID); err != nil {
+			return err
+		}
+
+		user, err := authenticate(ctx, m.DB(), *who)
 		if err != nil {
 			return err
 		}
@@ -132,22 +160,6 @@ func runVaultDelete(args []string) error {
 			return fmt.Errorf("« %s » appartient à quelqu'un d'autre : seul son propriétaire peut le supprimer", p.Name)
 		}
 
-		// The name typed out, like the interface asks for. Nobody writes a
-		// vault's name by accident, and this is the one command no backup
-		// taken afterwards can undo.
-		//
-		// The identifier is accepted just as well, because a name is not
-		// always typeable. A vault created by something that fills every field
-		// with an attack payload carries braces, backticks and quotes, and no
-		// shell on earth lets that be repeated verbatim. The identifier proves
-		// the same thing - that this exact vault was meant - and is always
-		// sixteen plain characters.
-		if c := strings.TrimSpace(*confirm); c != p.Name && c != p.ID {
-			return fmt.Errorf("pour confirmer, ajoute : -confirmer %q\n"+
-				"        ou son identifiant, plus simple si le nom est tordu : -confirmer %s",
-				p.Name, p.ID)
-		}
-
 		secrets, err := m.DB().ListSecrets(ctx, p.ID, store.DefaultEnvironment)
 		if err != nil {
 			return err
@@ -161,6 +173,33 @@ func runVaultDelete(args []string) error {
 			p.Name, len(secrets))
 		return nil
 	})
+}
+
+// checkConfirmation holds the confirmation to the vault it names.
+//
+// It also catches the mistake this flag invites. Written without a value, as in
+// "-confirmer -user cyril", the flag package hands it the next argument and the
+// command then fails on something unrelated - a missing positional, or a
+// missing account - which sends the reader looking in the wrong place. A
+// confirmation starting with a dash is that mistake nearly every time, so it is
+// named rather than compared.
+func checkConfirmation(given, name, id string) error {
+	c := strings.TrimSpace(given)
+
+	switch {
+	case strings.HasPrefix(c, "-"):
+		return fmt.Errorf("-confirmer a pris %q pour valeur : il en manque une juste après\n"+
+			"        essaie :  -confirmer %s -user <nom>", c, id)
+	case c == "":
+		return fmt.Errorf("il manque -confirmer\n"+
+			"        essaie :  -confirmer %s -user <nom>", id)
+	case c != name && c != id:
+		return fmt.Errorf("« %s » ne confirme pas ce coffre\n"+
+			"        recopie son nom : -confirmer %q\n"+
+			"        ou son identifiant, plus simple si le nom est tordu : -confirmer %s",
+			c, name, id)
+	}
+	return nil
 }
 
 // runVaultRotate re-encrypts a whole vault under a fresh key.

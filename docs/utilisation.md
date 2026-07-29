@@ -132,7 +132,19 @@ Ouvre le coffre, puis **Ajouter un secret**.
 - **Nom** : « Mot de passe MQTT ».
 - **Identifiant** : proposé au fur et à mesure de la frappe, `mot_de_passe_mqtt`.
   Laisse-le tel quel dans le doute.
-- **Valeur** : le mot de passe ou la clé.
+- **Valeur** : le mot de passe ou la clé. Le bouton **Générer une valeur** en
+  tire une pour toi - trente-deux lettres et chiffres, soit cent quatre-vingt-dix
+  bits. Le même bouton existe sur un secret déjà créé, pour le renouveler.
+
+Le tirage se fait dans ton navigateur, pas sur le serveur : la valeur ne
+traverse le réseau qu'une fois, à l'enregistrement, au lieu d'un aller-retour
+supplémentaire.
+
+Pas de symboles, délibérément. Ces valeurs finissent dans un `secrets.yaml` ou
+une variable d'environnement, où le dollar, l'antislash et les guillemets
+changent de sens - et la panne se manifeste des jours plus tard, dans un
+appareil qui ne démarre plus. La longueur compense largement l'alphabet plus
+court.
 
 La liste d'un coffre n'affiche jamais une valeur - seulement les noms, les
 identifiants et les versions. Ouvrir un secret le déchiffre, et cette

@@ -182,3 +182,60 @@ func TestScriptedControlsArriveHidden(t *testing.T) {
 		t.Error("the value controls are not hidden before the script runs")
 	}
 }
+
+// Inventing a password by hand is how "Maison2024!" ends up guarding a house.
+
+func TestANewSecretOffersToGenerateItsValue(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret"))
+	if !strings.Contains(page, `data-generate="#value"`) {
+		t.Fatal("the creation form does not offer to generate a value")
+	}
+	// It only works with scripting, so it must not appear before the script runs.
+	if !strings.Contains(page, "data-needs-js hidden") {
+		t.Error("the generate control is not hidden before the script runs")
+	}
+}
+
+// Rotating a password is the more frequent case, so the control belongs on an
+// existing secret too.
+func TestAnExistingSecretCanBeRegenerated(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+	h.writeVersions(t, vault.ID, "mot_de_passe_mqtt", "s3cr3t")
+
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret?name=mot_de_passe_mqtt"))
+	if !strings.Contains(page, `data-generate="#value"`) {
+		t.Fatal("an existing secret cannot be given a fresh value")
+	}
+}
+
+// Someone who was handed a secret to read must not be offered a way to replace
+// its value, even one the server would refuse.
+func TestAReadOnlyShareIsNotOfferedTheGenerator(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+	h.writeVersions(t, vault.ID, "mot_de_passe_mqtt", "s3cr3t")
+
+	alice := h.addUser(t, "alice")
+	// Shared through the interface, so the test exercises the path that
+	// actually grants access rather than a shortcut around it.
+	resp := h.post(t, "/coffres/"+vault.ID+"/partages", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"mot_de_passe_mqtt"},
+		"user": {alice.ID}, "role": {string(store.RoleReader)},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("sharing returned %d", resp.StatusCode)
+	}
+
+	h.signInAs(t, "alice")
+	page := body(t, h.get(t, "/coffres/"+vault.ID+"/secret?name=mot_de_passe_mqtt"))
+	if strings.Contains(page, "data-generate") {
+		t.Fatal("a read-only share is offered the generator")
+	}
+}

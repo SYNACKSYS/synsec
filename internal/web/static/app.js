@@ -108,6 +108,16 @@ document.addEventListener("DOMContentLoaded", function () {
   Array.prototype.forEach.call(scripted, function (element) {
     element.hidden = false;
   });
+
+  // Drawing a value needs a secure context. SYNSEC has no plain-HTTP mode, so
+  // this only ever bites in an odd setup - and there the button is removed
+  // rather than left to fail silently.
+  if (!(window.crypto && window.crypto.getRandomValues)) {
+    var generators = document.querySelectorAll("[data-generate]");
+    Array.prototype.forEach.call(generators, function (button) {
+      button.remove();
+    });
+  }
 });
 
 // Show a secret without putting the cursor in it.
@@ -247,4 +257,67 @@ document.addEventListener("DOMContentLoaded", function () {
   window.addEventListener("pagehide", function () {
     root.className = saved;
   });
+});
+
+// Generate a value rather than invent one.
+//
+// Drawn here rather than on the server: the value then crosses the network
+// exactly once, when the form is submitted, instead of once on the way out and
+// once on the way back. The browser's generator is the same primitive a
+// security key uses to sign, so nothing is lost by asking it.
+//
+// Letters and digits only, deliberately. These values end up in a secrets.yaml
+// and in environment variables, where a quote, a backslash or a dollar sign
+// changes meaning and the failure shows up days later in a device that will
+// not start. The length makes up for the smaller alphabet several times over:
+// thirty-two characters out of sixty-two is a hundred and ninety bits.
+var secretAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+var secretLength = 32;
+
+function newSecret(length) {
+  // Bytes at or above this would fold unevenly onto the alphabet and make some
+  // characters likelier than others. Drawing again costs nothing and is the
+  // difference between random and nearly random.
+  var limit = 256 - (256 % secretAlphabet.length);
+  var buffer = new Uint8Array(length * 2);
+  var out = "";
+
+  while (out.length < length) {
+    window.crypto.getRandomValues(buffer);
+    for (var i = 0; i < buffer.length && out.length < length; i++) {
+      if (buffer[i] < limit) {
+        out += secretAlphabet.charAt(buffer[i] % secretAlphabet.length);
+      }
+    }
+  }
+  return out;
+}
+
+document.addEventListener("click", function (event) {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  var button = event.target.closest("[data-generate]");
+  if (!button) {
+    return;
+  }
+  event.preventDefault();
+
+  var target = document.querySelector(button.dataset.generate);
+  if (!target) {
+    return;
+  }
+  target.value = newSecret(secretLength);
+
+  // A value that arrives covered would be a value nobody asked to hide. The
+  // existing control is used rather than a second path to the same state, so
+  // a field the server made read-only stays read-only.
+  var field = button.closest("[data-secret-field]");
+  if (field) {
+    var toggle = field.querySelector("[data-reveal]");
+    if (toggle && target.classList.contains("masked")) {
+      toggle.click();
+    }
+  }
+  target.focus();
 });

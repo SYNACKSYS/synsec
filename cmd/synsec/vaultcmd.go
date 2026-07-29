@@ -44,7 +44,7 @@ synsec coffre - gère les coffres
 
   synsec coffre list
   synsec coffre create    <nom> [-description "..."]
-  synsec coffre supprimer <coffre> -confirmer <nom>
+  synsec coffre supprimer <coffre> -confirmer <nom|identifiant>
   synsec coffre rotation  <coffre>
 
   synsec coffre partager  <coffre> <utilisateur> [-role lecture|écriture|gestion]
@@ -102,13 +102,13 @@ func runVaultCreate(args []string) error {
 func runVaultDelete(args []string) error {
 	fs := flag.NewFlagSet("coffre supprimer", flag.ExitOnError)
 	dataDir := fs.String("data", "", "dossier de données")
-	confirm := fs.String("confirmer", "", "recopier le nom du coffre pour confirmer")
+	confirm := fs.String("confirmer", "", "recopier le nom du coffre, ou son identifiant, pour confirmer")
 	who := identityFlag(fs)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage : synsec coffre supprimer <coffre> -confirmer <nom>")
+		return fmt.Errorf("usage : synsec coffre supprimer <coffre> -confirmer <nom|identifiant>")
 	}
 
 	return withManager(*dataDir, func(ctx context.Context, m *vault.Manager) error {
@@ -135,8 +135,17 @@ func runVaultDelete(args []string) error {
 		// The name typed out, like the interface asks for. Nobody writes a
 		// vault's name by accident, and this is the one command no backup
 		// taken afterwards can undo.
-		if strings.TrimSpace(*confirm) != p.Name {
-			return fmt.Errorf("pour confirmer, ajoute : -confirmer %q", p.Name)
+		//
+		// The identifier is accepted just as well, because a name is not
+		// always typeable. A vault created by something that fills every field
+		// with an attack payload carries braces, backticks and quotes, and no
+		// shell on earth lets that be repeated verbatim. The identifier proves
+		// the same thing - that this exact vault was meant - and is always
+		// sixteen plain characters.
+		if c := strings.TrimSpace(*confirm); c != p.Name && c != p.ID {
+			return fmt.Errorf("pour confirmer, ajoute : -confirmer %q\n"+
+				"        ou son identifiant, plus simple si le nom est tordu : -confirmer %s",
+				p.Name, p.ID)
 		}
 
 		secrets, err := m.DB().ListSecrets(ctx, p.ID, store.DefaultEnvironment)

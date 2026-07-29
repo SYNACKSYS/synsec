@@ -125,6 +125,10 @@
         <label for="confirm">Recopie le nom du coffre pour confirmer</label>
         <input id="confirm" name="confirm" type="text" autocomplete="off"
                placeholder="{{.Vault.Name}}" required>
+        <p class="help">
+          Son identifiant convient aussi : <code>{{.Vault.ID}}</code>. Utile
+          quand le nom ne se recopie pas facilement.
+        </p>
       </div>
 
       <div class="form-actions">

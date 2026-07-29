@@ -32,6 +32,13 @@ secrets précis.
 **+ Nouveau coffre** dans le menu de gauche. Donne-lui un nom que tu
 reconnaîtras d'un coup d'œil. Tu en deviens le propriétaire et le gestionnaire.
 
+Le nom fait 60 caractères au maximum. Sont acceptés les lettres accentuées, les
+chiffres, les espaces, l'apostrophe, et `- _ . , ( ) @ $ &`. Sont refusés les
+accolades, les deux-points, les barres obliques, les chevrons, les accents
+graves, les guillemets et tout caractère de contrôle : ce qui compose une
+charge d'attaque et n'a rien à faire dans un libellé. La description est bornée
+à 200 caractères.
+
 ### Retrouver un secret
 
 Le champ en haut du menu de gauche cherche dans **tous les coffres qui te sont
@@ -73,15 +80,19 @@ En bas de la page du coffre, réservé à son **propriétaire** : gérer un coff
 c'est décider qui y entre ; le supprimer emporte les secrets de tous ceux à qui
 il a été partagé, et ça ne se délègue pas avec le droit d'ajouter un membre.
 
-Il faut recopier le nom du coffre pour confirmer. Partent avec lui : les
-secrets, tout leur historique, les jetons des appareils et les partages. Il n'y
-a pas de corbeille - seule une sauvegarde antérieure les ramène. Le journal
-d'audit, lui, garde la trace de la suppression.
+Il faut recopier le nom du coffre pour confirmer, ou son identifiant, affiché
+sous le champ. L'identifiant rend service quand le nom ne se recopie pas
+facilement.
+
+Partent avec lui : les secrets, tout leur historique, les jetons des appareils
+et les partages. Il n'y a pas de corbeille - seule une sauvegarde antérieure
+les ramène. Le journal d'audit, lui, garde la trace de la suppression.
 
 En ligne de commande :
 
 ```
 synsec coffre supprimer Maison -confirmer Maison
+synsec coffre supprimer gfdhugabukzzpbub -confirmer gfdhugabukzzpbub
 ```
 
 ### Reprendre ce que tu as déjà

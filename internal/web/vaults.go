@@ -44,6 +44,11 @@ func (s *Server) createVault(w http.ResponseWriter, r *http.Request) {
 			s.redirectWithError(w, r, "/coffres/nouveau", "Un coffre porte déjà ce nom.")
 			return
 		}
+		// A refused name is the person's to fix, not an internal failure.
+		if errors.Is(err, store.ErrVaultName) {
+			s.redirectWithError(w, r, "/coffres/nouveau", vaultNameProblem(err))
+			return
+		}
 		s.fail(w, r, user, err)
 		return
 	}
@@ -143,9 +148,13 @@ func (s *Server) deleteVault(w http.ResponseWriter, r *http.Request) {
 	// reflex; writing "Maison" is not something anyone does by accident, and
 	// this is the one action in SYNSEC that no backup taken afterwards can
 	// undo.
-	if strings.TrimSpace(r.PostFormValue("confirm")) != vault.Name {
+	// The identifier confirms as well as the name. A vault whose name cannot be
+	// retyped - one created by something that fills every field with a payload
+	// - would otherwise be undeletable by its own owner.
+	if c := strings.TrimSpace(r.PostFormValue("confirm")); c != vault.Name && c != vault.ID {
 		s.redirectWithError(w, r, back,
-			"Pour supprimer ce coffre, recopie son nom exactement : "+vault.Name)
+			"Pour supprimer ce coffre, recopie son nom exactement : "+vault.Name+
+				" - ou son identifiant : "+vault.ID)
 		return
 	}
 
@@ -532,6 +541,23 @@ func cleanSecretName(raw string) (string, error) {
 //
 // The message travels in the query string, which is why it must never carry
 // anything sensitive: it lands in the browser's history.
+// vaultNameProblem turns a refusal into a sentence worth reading.
+//
+// The offending character is not repeated back: it came from the visitor, and
+// the message travels in a query string that lands in browser history.
+func vaultNameProblem(err error) string {
+	switch {
+	case strings.Contains(err.Error(), "caractères au maximum"):
+		return "Ce nom est trop long : " + strconv.Itoa(store.MaxVaultNameLength) + " caractères au maximum."
+	case strings.Contains(err.Error(), "description"):
+		return "La description est trop longue : " +
+			strconv.Itoa(store.MaxVaultDescriptionLength) + " caractères au maximum."
+	default:
+		return "Ce nom contient un caractère qui n'y a pas sa place. " +
+			"Lettres, chiffres, espaces, et - _ . , ( ) @ $ & seulement."
+	}
+}
+
 func (s *Server) redirectWithError(w http.ResponseWriter, r *http.Request, to, message string) {
 	http.Redirect(w, r, to+"?erreur="+urlEncode(message), http.StatusSeeOther)
 }

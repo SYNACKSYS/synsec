@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode"
 )
 
 // DefaultEnvironment is the single environment created with every vault.
@@ -15,6 +16,85 @@ import (
 // and asking its owner to choose between "dev" and "prod" before storing a
 // Wi-Fi password would be a bad first impression.
 const DefaultEnvironment = "prod"
+
+// What a vault may be called.
+//
+// A vault name is a label a person reads, not an identifier a script uses, so
+// it is far more permissive than a secret's name: accents, spaces and the
+// apostrophes French is full of all belong. What it refuses is everything that
+// has no business in a label and every business in an attack payload - braces,
+// backticks, angle brackets, quotes, pipes, and any control character.
+//
+// The at sign, the dollar and the ampersand are allowed: they turn up in real
+// labels - "Sauvegardes @ maison", "Domotique & caméras" - and none of them is
+// dangerous on its own here, since nothing in this server passes a vault name
+// to a shell or to an interpolating template engine. What made the payloads
+// payloads was the punctuation around them, and braces, colons, slashes,
+// percent signs, angle brackets, backticks and quotes all stay refused. A name
+// cannot become "${jndi:ldap://...}" without them.
+//
+// The rule is a list of what is allowed rather than of what is not. A list of
+// forbidden characters is a list somebody eventually finds a gap in; this one
+// has no gap by construction.
+const (
+	// MaxVaultNameLength is counted in characters, not bytes, so an accent
+	// costs the same as a letter.
+	MaxVaultNameLength = 60
+
+	// MaxVaultDescriptionLength bounds the line shown under a vault's name.
+	MaxVaultDescriptionLength = 200
+)
+
+// ErrVaultName says a name was refused, so a caller can tell it apart from a
+// name already taken.
+var ErrVaultName = errors.New("store: nom de coffre refusé")
+
+// ValidVaultName reports whether a vault may be called this.
+func ValidVaultName(name string) error {
+	runes := []rune(name)
+	switch {
+	case len(runes) == 0:
+		return fmt.Errorf("%w : il en faut un", ErrVaultName)
+	case len(runes) > MaxVaultNameLength:
+		return fmt.Errorf("%w : %d caractères au maximum", ErrVaultName, MaxVaultNameLength)
+	}
+
+	for _, r := range runes {
+		if !vaultNameRune(r) {
+			return fmt.Errorf("%w : le caractère %q n'y a pas sa place", ErrVaultName, r)
+		}
+	}
+	return nil
+}
+
+// ValidVaultDescription bounds the line shown under a name.
+func ValidVaultDescription(text string) error {
+	runes := []rune(text)
+	if len(runes) > MaxVaultDescriptionLength {
+		return fmt.Errorf("%w : la description dépasse %d caractères",
+			ErrVaultName, MaxVaultDescriptionLength)
+	}
+	for _, r := range runes {
+		if unicode.IsControl(r) {
+			return fmt.Errorf("%w : la description contient un caractère de contrôle", ErrVaultName)
+		}
+	}
+	return nil
+}
+
+// vaultNameRune reports whether one character belongs in a vault name.
+func vaultNameRune(r rune) bool {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return true
+	}
+	switch r {
+	case ' ', '-', '_', '\'', '.', ',', '(', ')', '@', '$', '&':
+		return true
+	case '’': // the typographic apostrophe a phone keyboard produces
+		return true
+	}
+	return false
+}
 
 // Project is a vault: a named container with its own encryption key.
 type Project struct {
@@ -45,8 +125,14 @@ type Environment struct {
 // would accept no secrets, and half-created vaults are exactly the sort of
 // state a non-technical owner has no way to diagnose or repair.
 func (db *DB) CreateProject(ctx context.Context, p *Project) error {
-	if p.Name == "" {
-		return fmt.Errorf("store: a vault needs a name")
+	// Checked here rather than in each caller: the interface and the command
+	// line both land on this function, and a rule enforced in one of the two is
+	// a rule with a way around it.
+	if err := ValidVaultName(p.Name); err != nil {
+		return err
+	}
+	if err := ValidVaultDescription(p.Description); err != nil {
+		return err
 	}
 	if len(p.WrappedDEK) == 0 {
 		return fmt.Errorf("store: a vault needs a wrapped encryption key")

@@ -38,6 +38,11 @@ refusés les deux-points, les barres obliques, les pourcents, les chevrons, les
 accents graves, les guillemets et tout caractère de contrôle. La description est
 bornée à 200 caractères.
 
+La même règle vaut pour tout ce qu'on écrit et relit ensuite : le nom d'un
+secret, le nom d'un appareil, le nom affiché d'un compte. Le nom d'utilisateur,
+lui, est plus strict - 32 caractères, lettres non accentuées, chiffres, et
+`- _ .` : il se tape à une invite et figure à côté de chaque ligne du journal.
+
 ### Retrouver un secret
 
 Le champ en haut du menu de gauche cherche dans **tous les coffres qui te sont

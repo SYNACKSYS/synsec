@@ -86,6 +86,9 @@ func (db *DB) PutSecret(ctx context.Context, loc SecretLocation, label, author s
 	if err := ValidSecretName(loc.Name); err != nil {
 		return Secret{}, err
 	}
+	if err := ValidLabel("le nom du secret", label); err != nil {
+		return Secret{}, err
+	}
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -173,6 +176,9 @@ func (db *DB) PutSecret(ctx context.Context, loc SecretLocation, label, author s
 // encryption, so nothing has to be decrypted and no device that addresses the
 // secret by its slug notices.
 func (db *DB) SetSecretLabel(ctx context.Context, loc SecretLocation, label string) error {
+	if err := ValidLabel("le nom du secret", label); err != nil {
+		return err
+	}
 	res, err := db.ExecContext(ctx,
 		`UPDATE secrets SET label = ? WHERE project_id = ? AND env = ? AND name = ?`,
 		strings.TrimSpace(label), loc.ProjectID, loc.Env, loc.Name)

@@ -74,6 +74,9 @@ func (t ServiceToken) AllowsIP(ip string) bool {
 // CreateServiceToken stores a token against the hash of its secret, filling in
 // ID and CreatedAt. The caller keeps the plaintext to show once and discard.
 func (db *DB) CreateServiceToken(ctx context.Context, t *ServiceToken, secretHash []byte) error {
+	if err := ValidLabel("le nom de l'appareil", t.Name); err != nil {
+		return err
+	}
 	switch {
 	case t.Name == "":
 		return fmt.Errorf("store: a token needs a name")

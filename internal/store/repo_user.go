@@ -37,6 +37,12 @@ type Credentials struct {
 
 // CreateUser stores a new account and fills in ID and CreatedAt.
 func (db *DB) CreateUser(ctx context.Context, u *User, cred Credentials) error {
+	if err := ValidUsername(u.Username); err != nil {
+		return err
+	}
+	if err := ValidLabel("le nom affiché", u.DisplayName); err != nil {
+		return err
+	}
 	if u.Username == "" {
 		return fmt.Errorf("store: a user needs a name")
 	}

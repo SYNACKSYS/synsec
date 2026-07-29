@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -544,5 +545,60 @@ func TestAWrongConfirmationStillRefuses(t *testing.T) {
 	}
 	if _, err := h.manager.DB().Project(context.Background(), vault.ID); err != nil {
 		t.Fatal("le coffre a été supprimé malgré une confirmation incorrecte")
+	}
+}
+
+// The form and the server must agree. A field that lets somebody type more
+// than the server will store is a refusal they only discover on submitting.
+func TestEveryBoundedFieldCarriesItsBoundInTheForm(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	pages := map[string]map[string]int{
+		"/coffres/nouveau":                    {"name": store.MaxVaultNameLength, "description": store.MaxVaultDescriptionLength},
+		"/coffres/" + vault.ID + "/secret":    {"label": store.MaxLabelLength, "name": store.MaxSecretNameLength},
+		"/coffres/" + vault.ID + "/appareils": {"name": store.MaxLabelLength},
+		"/comptes":                            {"username": store.MaxUsernameLength, "display_name": store.MaxLabelLength},
+	}
+
+	for path, fields := range pages {
+		page := body(t, h.get(t, path))
+		for field, limit := range fields {
+			// The attribute has to sit on the same tag as the field, so the
+			// search starts at the field and looks just past it.
+			at := strings.Index(page, `name="`+field+`"`)
+			if at < 0 {
+				t.Errorf("%s : champ %q introuvable", path, field)
+				continue
+			}
+			tag := page[at:]
+			if end := strings.Index(tag, ">"); end > 0 {
+				tag = tag[:end]
+			}
+			if !strings.Contains(tag, `maxlength="`+strconv.Itoa(limit)+`"`) {
+				t.Errorf("%s : le champ %q n'annonce pas maxlength=%d", path, field, limit)
+			}
+		}
+	}
+}
+
+// And a label refused by the server says so on the form rather than failing as
+// an internal error.
+func TestARefusedSecretLabelIsExplained(t *testing.T) {
+	h := newHarness(t)
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.post(t, "/coffres/"+vault.ID+"/secret", url.Values{
+		"csrf": {h.csrf(t)}, "label": {"<script>alert(1)</script>"},
+		"name": {"essai"}, "value": {"x"},
+	})
+	loc := resp.Header.Get("Location")
+	if !strings.Contains(loc, "erreur=") {
+		t.Fatalf("un libellé de charge a été accepté : %s", loc)
+	}
+	if strings.Contains(loc, "script") {
+		t.Fatalf("le message renvoie la charge : %s", loc)
 	}
 }

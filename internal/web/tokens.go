@@ -84,6 +84,10 @@ func (s *Server) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.vault.DB().CreateServiceToken(r.Context(), &tok, hash); err != nil {
+		if errors.Is(err, store.ErrLabel) {
+			s.redirectWithError(w, r, back, labelProblem(err))
+			return
+		}
 		s.fail(w, r, user, err)
 		return
 	}

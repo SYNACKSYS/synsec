@@ -467,6 +467,10 @@ func (s *Server) saveSecret(w http.ResponseWriter, r *http.Request) {
 
 	loc := store.SecretLocation{ProjectID: vault.ID, Env: store.DefaultEnvironment, Name: name}
 	if _, err := s.vault.PutSecret(r.Context(), loc, []byte(value), label, user.Username); err != nil {
+		if errors.Is(err, store.ErrLabel) {
+			s.redirectWithError(w, r, back, labelProblem(err))
+			return
+		}
 		s.fail(w, r, user, err)
 		return
 	}
@@ -541,6 +545,18 @@ func cleanSecretName(raw string) (string, error) {
 //
 // The message travels in the query string, which is why it must never carry
 // anything sensitive: it lands in the browser's history.
+// labelProblem turns a refused label into a sentence worth reading.
+//
+// The offending character is not repeated back: it came from the visitor, and
+// the message travels in a query string that lands in browser history.
+func labelProblem(err error) string {
+	if strings.Contains(err.Error(), "dépasse") {
+		return "C'est trop long : " + strconv.Itoa(store.MaxLabelLength) + " caractères au maximum."
+	}
+	return "Ce nom contient un caractère qui n'y a pas sa place. " +
+		"Lettres, chiffres, espaces, et - _ . , ( ) [ ] { } @ $ & seulement."
+}
+
 // vaultNameProblem turns a refusal into a sentence worth reading.
 //
 // The offending character is not repeated back: it came from the visitor, and

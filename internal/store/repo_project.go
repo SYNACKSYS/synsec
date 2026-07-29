@@ -61,7 +61,7 @@ func ValidVaultName(name string) error {
 	}
 
 	for _, r := range runes {
-		if !vaultNameRune(r) {
+		if !labelRune(r) {
 			return fmt.Errorf("%w : le caractère %q n'y a pas sa place", ErrVaultName, r)
 		}
 	}
@@ -81,20 +81,6 @@ func ValidVaultDescription(text string) error {
 		}
 	}
 	return nil
-}
-
-// vaultNameRune reports whether one character belongs in a vault name.
-func vaultNameRune(r rune) bool {
-	if unicode.IsLetter(r) || unicode.IsDigit(r) {
-		return true
-	}
-	switch r {
-	case ' ', '-', '_', '\'', '.', ',', '(', ')', '[', ']', '{', '}', '@', '$', '&':
-		return true
-	case '’': // the typographic apostrophe a phone keyboard produces
-		return true
-	}
-	return false
 }
 
 // Project is a vault: a named container with its own encryption key.

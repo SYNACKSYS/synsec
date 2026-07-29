@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -448,5 +449,49 @@ func TestWebSetsStrictTransportSecurity(t *testing.T) {
 	resp = h.get(t, "/")
 	if got := resp.Header.Get("Strict-Transport-Security"); got == "" {
 		t.Fatal("no Strict-Transport-Security header once signed in")
+	}
+}
+
+// The throttle keeps one record per address that has failed. Without a sweep
+// the table only ever grows, and a spray from many sources becomes a way to
+// exhaust a small machine's memory at no cost to the sender.
+func TestTheThrottleForgetsQuietAddresses(t *testing.T) {
+	th := newThrottle()
+	now := time.Now()
+
+	for i := 0; i < 500; i++ {
+		th.fail(fmt.Sprintf("192.0.2.%d", i), now)
+	}
+	if len(th.records) != 500 {
+		t.Fatalf("%d records held, want 500", len(th.records))
+	}
+
+	// An hour later a single new address arrives; the rest are long past
+	// anything their history could mean.
+	th.fail("198.51.100.1", now.Add(throttleForget+time.Minute))
+	if len(th.records) != 1 {
+		t.Fatalf("%d records survived the sweep, want 1", len(th.records))
+	}
+}
+
+// An address serving out its lockout must never be forgotten early, or the
+// sweep would become the way around the throttle.
+func TestALockedAddressIsNotSweptAway(t *testing.T) {
+	th := newThrottle()
+	now := time.Now()
+
+	for i := 0; i < throttleAfter; i++ {
+		th.fail("192.0.2.10", now)
+	}
+	if _, blocked := th.blocked("192.0.2.10", now); !blocked {
+		t.Fatal("the address was not locked out")
+	}
+
+	// Someone else arrives while the lockout still runs. Half a minute in,
+	// because five failures buy exactly one minute and the point is to look
+	// while it is still running, not at the instant it ends.
+	th.fail("198.51.100.1", now.Add(30*time.Second))
+	if _, blocked := th.blocked("192.0.2.10", now.Add(30*time.Second)); !blocked {
+		t.Fatal("the sweep released an address still serving its lockout")
 	}
 }

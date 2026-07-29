@@ -266,6 +266,17 @@ const (
 	throttleAfter   = 5
 	throttleBase    = time.Minute
 	throttleCeiling = 15 * time.Minute
+
+	// throttleForget drops an address that has gone quiet. Without it the
+	// table only ever grows: every address that ever failed once stays until
+	// the process restarts, and a spray from many sources is then a way to
+	// exhaust the memory of a small machine at no cost to the sender.
+	//
+	// Well past the ceiling, so an address serving out its lockout is never
+	// forgotten early. Waiting an hour to have a counter reset means five
+	// attempts an hour against Argon2id, which is the rate this was built to
+	// tolerate anyway.
+	throttleForget = time.Hour
 )
 
 // throttle slows down repeated failed sign-ins.
@@ -283,6 +294,7 @@ type throttle struct {
 type throttleRecord struct {
 	failures int
 	until    time.Time
+	lastSeen time.Time
 }
 
 func newThrottle() *throttle {
@@ -309,10 +321,15 @@ func (t *throttle) fail(key string, now time.Time) {
 
 	rec, ok := t.records[key]
 	if !ok {
+		// Sweeping here rather than on a timer: the only moment the table can
+		// grow is when a new address arrives, so that is the moment to look.
+		t.forgetIdle(now)
+
 		rec = &throttleRecord{}
 		t.records[key] = rec
 	}
 	rec.failures++
+	rec.lastSeen = now
 
 	if rec.failures < throttleAfter {
 		return
@@ -322,6 +339,16 @@ func (t *throttle) fail(key string, now time.Time) {
 		wait = throttleCeiling
 	}
 	rec.until = now.Add(wait)
+}
+
+// forgetIdle drops the addresses that have been quiet long enough for their
+// history to mean nothing.
+func (t *throttle) forgetIdle(now time.Time) {
+	for key, rec := range t.records {
+		if now.Sub(rec.lastSeen) > throttleForget {
+			delete(t.records, key)
+		}
+	}
 }
 
 // succeed forgets a key's history after a correct password.

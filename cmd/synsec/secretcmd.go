@@ -98,17 +98,19 @@ func runSecretSet(args []string) error {
 		}
 	})
 
-	plain, err := readValue(*value, valueSet)
-	if err != nil {
-		return err
-	}
-
 	return withManager(*dataDir, func(ctx context.Context, m *vault.Manager) error {
 		p, err := resolveVault(ctx, m.DB(), fs.Arg(0))
 		if err != nil {
 			return err
 		}
 		user, err := authenticate(ctx, m.DB(), *who)
+		if err != nil {
+			return err
+		}
+
+		// After the identity, never before: both read standard input, and the
+		// value takes everything that is left.
+		plain, err := readValue(*value, valueSet)
 		if err != nil {
 			return err
 		}

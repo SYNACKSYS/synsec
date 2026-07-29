@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"golang.org/x/term"
 	"text/tabwriter"
 	"time"
 
@@ -138,6 +140,22 @@ func readValue(flagValue string, flagSet bool) ([]byte, error) {
 	if flagSet {
 		return []byte(flagValue), nil
 	}
+	// Piped input, typically a provisioning script. The password prompt has
+	// already taken its line from the same reader, so what is left is the
+	// value - all of it, newlines included.
+	//
+	// Reading straight from os.Stdin here would swallow the whole stream
+	// before the prompt ever ran, and every scripted write would fail on a
+	// password that was never asked for. One reader, one order: the identity
+	// first, the value after.
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		value, err := io.ReadAll(pipedInput())
+		if err != nil {
+			return nil, fmt.Errorf("lecture de la valeur : %w", err)
+		}
+		return []byte(strings.TrimRight(string(value), "\r\n")), nil
+	}
+
 	fmt.Fprintln(os.Stderr, "Saisis la valeur puis termine par Ctrl+Z (Windows) ou Ctrl+D (Linux) :")
 
 	value, err := io.ReadAll(os.Stdin)

@@ -309,7 +309,7 @@ func (s *Server) renderTokens(w http.ResponseWriter, r *http.Request, vault stor
 		Tokens:    rows,
 		Secrets:   secrets,
 		NewToken:  fresh,
-		Host:      r.Host,
+		Host:      s.publicHost(r),
 		CanManage: true,
 		Notice:    r.URL.Query().Get("info"),
 		Error:     r.URL.Query().Get("erreur"),

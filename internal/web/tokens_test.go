@@ -311,3 +311,92 @@ func TestAFreshTokenCanBeCopied(t *testing.T) {
 		t.Error("the copy controls are not hidden before the script runs")
 	}
 }
+
+// The Host header is chosen by whoever sends the request, and the page that
+// shows a fresh token puts it into a command the person is invited to paste.
+// A header naming somewhere else would have the page hand the token over.
+
+// postAs sends a form while claiming a given Host, the way a request arriving
+// through a proxy that forwards one would.
+func (h *harness) postAs(t *testing.T, host, path string, form url.Values) *http.Response {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodPost, h.srv.URL+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Host = host
+
+	// Attached by hand: the jar keys on the URL, and this request deliberately
+	// claims to be somewhere else.
+	u, err := url.Parse(h.srv.URL)
+	if err != nil {
+		t.Fatalf("parsing server URL: %v", err)
+	}
+	for _, c := range h.client.Jar.Cookies(u) {
+		req.AddCookie(c)
+	}
+
+	resp, err := h.client.Do(req)
+	if err != nil {
+		t.Fatalf("POST %s: %v", path, err)
+	}
+	t.Cleanup(func() { resp.Body.Close() })
+	return resp
+}
+
+func TestTheTokenCommandRefusesAnUnknownHost(t *testing.T) {
+	h := newHarness(t, ServedNames([]string{"synsec.maison", "192.168.1.72"}))
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.postAs(t, "mechant.example", "/coffres/"+vault.ID+"/appareils", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"Home Assistant"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("creating the token returned %d", resp.StatusCode)
+	}
+	page := body(t, resp)
+
+	if strings.Contains(page, "mechant.example") {
+		t.Fatal("the command shown carries the host the caller claimed")
+	}
+	if !strings.Contains(page, "synsec.maison") {
+		t.Fatal("the command does not fall back to an address this server serves")
+	}
+}
+
+// An address the certificate does cover must still be shown as it arrived, or
+// every ordinary command would need editing by hand.
+func TestTheTokenCommandKeepsAKnownHost(t *testing.T) {
+	h := newHarness(t, ServedNames([]string{"synsec.maison"}))
+	h.signIn(t)
+	vault := h.newVault(t, "Maison")
+
+	resp := h.postAs(t, "synsec.maison:8787", "/coffres/"+vault.ID+"/appareils", url.Values{
+		"csrf": {h.csrf(t)}, "name": {"Home Assistant"},
+	})
+	if page := body(t, resp); !strings.Contains(page, "synsec.maison:8787") {
+		t.Fatal("a known address was not kept, port included")
+	}
+}
+
+func TestPublicHostFallsBackWithThePort(t *testing.T) {
+	s := &Server{}
+	ServedNames([]string{"synsec.maison", "192.168.1.72"})(s)
+
+	cases := map[string]string{
+		"synsec.maison:8787": "synsec.maison:8787",
+		"192.168.1.72:8787":  "192.168.1.72:8787",
+		"SYNSEC.MAISON:8787": "SYNSEC.MAISON:8787",
+		"mechant.example":    "synsec.maison",
+		"mechant.example:80": "synsec.maison:80",
+	}
+	for host, want := range cases {
+		r := &http.Request{Host: host}
+		if got := s.publicHost(r); got != want {
+			t.Errorf("publicHost(%q) = %q, want %q", host, got, want)
+		}
+	}
+}

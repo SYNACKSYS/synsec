@@ -79,6 +79,12 @@ type Server struct {
 	clients *clientip.Resolver
 	allow   []string
 
+	// servedNames are the addresses this server's certificate says it answers
+	// to, and firstServedName the one to fall back on. They decide whether a
+	// Host header may be repeated back to the person reading a page.
+	servedNames     map[string]bool
+	firstServedName string
+
 	// requirePin is the command line's word on the second factor, when it said
 	// anything: it wins over the stored setting either way. requireStored is
 	// what the interface last chose, cached because it is consulted on every

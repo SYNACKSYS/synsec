@@ -268,3 +268,27 @@ func fingerprintOf(der []byte) string {
 	}
 	return string(out)
 }
+
+// ServedNames lists the names and addresses a certificate says this server
+// answers to.
+//
+// It exists so the interface can tell an address it really serves from one a
+// caller merely claimed in a Host header. That header is chosen by whoever
+// sends the request, and it ends up in a command the person is invited to
+// paste - a command that carries a service token.
+func ServedNames(cert tls.Certificate) []string {
+	if len(cert.Certificate) == 0 {
+		return nil
+	}
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil
+	}
+
+	out := make([]string, 0, len(parsed.DNSNames)+len(parsed.IPAddresses))
+	out = append(out, parsed.DNSNames...)
+	for _, ip := range parsed.IPAddresses {
+		out = append(out, ip.String())
+	}
+	return out
+}

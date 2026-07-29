@@ -166,8 +166,20 @@ Options :
 
 	apiOpts := []api.Option{api.TrustProxies(clients)}
 
+	// Prepared before the interface, because the names this certificate covers
+	// are what let the interface tell an address it really serves from one a
+	// caller merely claimed in a Host header.
+	tlsConf, local, err := serverTLS(cfg)
+	if err != nil {
+		return err
+	}
+	servedNames := servedCertificateNames(cfg, local)
+
 	ui, err := web.New(manager,
 		web.WithSessionIdle(cfg.SessionIdle),
+		// The names the certificate covers, so the interface can tell an
+		// address it really serves from one a caller merely claimed.
+		web.ServedNames(servedNames),
 		web.TrustProxies(clients),
 		web.RestrictTo(cfg.WebAllow),
 		web.RequireSecondFactor(cfg.RequireSecondFactor),
@@ -192,10 +204,6 @@ Options :
 		ErrorLog:          log.New(os.Stderr, "http: ", log.LstdFlags),
 	}
 
-	tlsConf, local, err := serverTLS(cfg)
-	if err != nil {
-		return err
-	}
 	srv.TLSConfig = tlsConf
 	announce(cfg, local)
 
@@ -277,6 +285,25 @@ func serverTLS(cfg config.Config) (*tls.Config, *tlsconf.Local, error) {
 		Certificates: []tls.Certificate{local.Certificate},
 		MinVersion:   tls.VersionTLS12,
 	}, &local, nil
+}
+
+// servedCertificateNames lists the addresses the served certificate covers.
+//
+// With SYNSEC's own certificate they are read from it directly. With an
+// operator's certificate the file is read once here: it is the same file the
+// reloader serves, and its names change only when the certificate itself does.
+// A file that cannot be read leaves the list empty, which keeps the previous
+// behaviour rather than turning a certificate problem into a broken page.
+func servedCertificateNames(cfg config.Config, local *tlsconf.Local) []string {
+	if local != nil {
+		return tlsconf.ServedNames(local.Certificate)
+	}
+	cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+	if err != nil {
+		log.Printf("serve: reading the certificate names: %v", err)
+		return nil
+	}
+	return tlsconf.ServedNames(cert)
 }
 
 func announce(cfg config.Config, local *tlsconf.Local) {

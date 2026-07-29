@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"golang.org/x/term"
 
@@ -319,6 +320,23 @@ func promptNewPasswordFor(username string) (string, error) {
 	return first, nil
 }
 
+// piped is the single reader over standard input, built on first use.
+//
+// One for the whole process, not one per prompt: a buffered reader takes more
+// than the line it hands back, so a second reader over the same pipe finds the
+// rest already gone. Building one each time made every two-prompt flow -
+// creating an account, changing a password - fail at the confirmation with
+// EOF, which is exactly the provisioning case this path exists for.
+var (
+	piped     *bufio.Reader
+	pipedOnce sync.Once
+)
+
+func pipedInput() *bufio.Reader {
+	pipedOnce.Do(func() { piped = bufio.NewReader(os.Stdin) })
+	return piped
+}
+
 func promptPassword(prompt string) (string, error) {
 	fmt.Fprint(os.Stderr, prompt)
 
@@ -326,7 +344,7 @@ func promptPassword(prompt string) (string, error) {
 	if !term.IsTerminal(fd) {
 		// Piped input, typically a provisioning script. Nothing is echoed by
 		// definition, so reading a line is enough.
-		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		line, err := pipedInput().ReadString('\n')
 		if err != nil && line == "" {
 			return "", fmt.Errorf("lecture du mot de passe : %w", err)
 		}

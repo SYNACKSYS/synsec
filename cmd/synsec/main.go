@@ -47,6 +47,7 @@ var commands = map[string]func(args []string) error{
 	"service":     runService,
 	"recover":     runRecover,
 	"recuperer":   runRecover,
+	"maintenance": runMaintenance,
 }
 
 func main() {
@@ -107,6 +108,7 @@ Commandes :
   cert         Installe le certificat pour supprimer l'avertissement du navigateur
   service      Installe SYNSEC en service, pour un démarrage automatique
   recover      Rouvre le coffre avec le code de récupération imprimé
+  maintenance  Réécrit la base pour effacer ce que les suppressions ont libéré
 
 Aide d'une commande :
   synsec coffre -h

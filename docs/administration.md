@@ -388,6 +388,36 @@ qu'un flot de requêtes non authentifiées ne touche jamais la base.
 
 Rien à activer : c'est le comportement par défaut, à la maison comme ailleurs.
 
+## Effacer ce qui a été supprimé
+
+Une suppression écrase désormais ce qu'elle libère : SQLite est configuré en
+`secure_delete`, donc les pages rendues au fichier sont remises à zéro plutôt
+que simplement marquées réutilisables.
+
+Ça ne vaut que pour les suppressions faites depuis. **Ce qui a été supprimé
+avant est toujours dans le fichier** : un secret effacé, un coffre supprimé,
+ou les anciens chiffrés qu'une rotation de clé a remplacés. Rien de tout cela
+n'est en clair - c'est du chiffré, comme le reste de la base - mais c'est
+lisible avec la clé du coffre, ce qui vide de son sens la rotation faite
+justement parce qu'on soupçonnait cette clé.
+
+Pour nettoyer, serveur arrêté :
+
+```
+net stop SYNSEC
+synsec maintenance nettoyer
+net start SYNSEC
+```
+
+La commande vérifie l'intégrité de la base, replie le journal d'écriture,
+réécrit le fichier, et annonce la taille avant et après. Elle refuse de
+réécrire une base dont l'intégrité est douteuse : dans ce cas c'est une
+sauvegarde qu'il faut restaurer, pas un nettoyage qu'il faut lancer.
+
+Une limite honnête : SYNSEC réécrit son fichier, il ne contrôle pas ce que le
+système de fichiers ou le disque conservent de l'ancien. Sur un SSD, seul le
+chiffrement du disque répond à cette question.
+
 ## Le journal d'audit
 
 Chaque lecture, écriture, partage, connexion et refus est enregistré, avec

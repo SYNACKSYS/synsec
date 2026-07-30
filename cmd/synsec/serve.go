@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"synsec/internal/alert"
 	"synsec/internal/api"
 	"synsec/internal/clientip"
 	"synsec/internal/config"
@@ -151,6 +152,15 @@ Options :
 	defer stopJanitor()
 	startJanitor(janitorCtx, db, cfg.AuditRetain)
 
+	// Les alertes suivent le journal plutôt que les gestionnaires : c'est ce
+	// qui fait qu'une suppression lancée en ligne de commande, service arrêté,
+	// est signalée au redémarrage comme le reste.
+	hostname, _ := os.Hostname()
+	watcher := alert.NewWatcher(db, func(ctx context.Context) (alert.Config, error) {
+		return alert.LoadConfig(ctx, manager, hostname)
+	})
+	go watcher.Run(janitorCtx)
+
 	// Qui a le droit de dire d'où vient une requête. Sans proxy nommé,
 	// X-Forwarded-For est ignoré : sinon n'importe quel appelant choisirait
 	// l'adresse contre laquelle ses listes blanches sont vérifiées.
@@ -183,6 +193,7 @@ Options :
 		web.TrustProxies(clients),
 		web.RestrictTo(cfg.WebAllow),
 		web.RequireSecondFactor(cfg.RequireSecondFactor),
+		web.WithAlerts(watcher),
 	)
 	if err != nil {
 		return err

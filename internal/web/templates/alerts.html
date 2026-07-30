@@ -1,0 +1,140 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Alertes</h1>
+    <p class="subtitle">
+      SYNSEC enregistre tout dans son journal, mais un journal ne réveille
+      personne. Ici, tu dis où prévenir quand quelque chose sort de
+      l'ordinaire : un appareil refusé, un coffre supprimé, un accès donné.
+    </p>
+  </div>
+</div>
+
+{{if .AlertStatus}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <h2>État</h2>
+    <dl class="facts">
+      <dt>Dernier envoi réussi</dt>
+      <dd>{{if .AlertStatus.LastSuccess.IsZero}}<span class="muted">aucun</span>{{else}}{{date .AlertStatus.LastSuccess}}{{end}}</dd>
+
+      <dt>Messages partis</dt>
+      <dd>{{.AlertStatus.Sent}} <span class="muted">depuis le démarrage du serveur</span></dd>
+
+      {{if .AlertStatus.Failed}}
+      <dt>Échecs</dt>
+      <dd>{{.AlertStatus.Failed}}</dd>
+      {{end}}
+    </dl>
+
+    {{if .AlertStatus.LastError}}
+    <p class="alert alert-warn">
+      Dernière erreur : {{.AlertStatus.LastError}}
+    </p>
+    {{end}}
+    {{if .AlertStatus.Capped}}
+    <p class="alert alert-warn">
+      Le plafond de messages du jour est atteint. SYNSEC a cessé d'envoyer
+      jusqu'à demain pour ne pas noyer le destinataire ; le journal, lui,
+      continue de tout enregistrer.
+    </p>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <h2>Où prévenir</h2>
+    <p class="help">
+      Une adresse qui reçoit un POST JSON : Home Assistant, ntfy, Gotify, un
+      salon Discord, ou ton propre script. Rien ne passe par un service tiers
+      et il n'y a aucun quota.
+    </p>
+
+    <form method="post" action="/parametres/alertes">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+
+      <div class="field">
+        <label for="url">Adresse du webhook</label>
+        <input id="url" name="url" type="url" value="{{.AlertURL}}"
+               placeholder="https://domotique.maison:8123/api/webhook/synsec"
+               autocomplete="off" spellcheck="false">
+      </div>
+
+      <fieldset class="field">
+        <legend>Ce qui déclenche un message</legend>
+        {{range .AlertLevels}}
+        <div class="field-check">
+          <input id="level-{{.Value}}" name="level" type="radio" value="{{.Value}}"
+                 {{if .Chosen}}checked{{end}}>
+          <label for="level-{{.Value}}">
+            {{.Label}}
+            <span class="muted">{{.Hint}}</span>
+          </label>
+        </div>
+        {{end}}
+      </fieldset>
+
+      <div class="field field-check">
+        <input id="enabled" name="enabled" type="checkbox" value="1"
+               {{if .AlertEnabled}}checked{{end}}>
+        <label for="enabled">Envoyer les alertes</label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+
+    <form method="post" action="/parametres/alertes/test" class="form-inline">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button type="submit" class="btn btn-secondary">Envoyer un test</button>
+    </form>
+    <p class="help">
+      Un réglage qu'on n'a jamais essayé est un réglage auquel personne ne se
+      fie. Le test part même si les alertes sont encore éteintes.
+    </p>
+  </div>
+</div>
+
+{{if .AlertSecret}}
+<div class="card card-narrow">
+  <div class="card-body">
+    <h2>Signature</h2>
+    <p class="help">
+      Chaque message porte un en-tête <code>X-SYNSEC-Signature</code>. Il
+      prouve à ton destinataire que le message vient bien de ce serveur, et pas
+      de quelqu'un d'autre sur le réseau qui aurait deviné l'adresse. Recopie
+      cette clé dans ce qui reçoit.
+    </p>
+    <p class="token">{{.AlertSecret}}</p>
+    <p class="help">
+      Le calcul : <code>sha256_hmac(clé, horodatage + "." + corps)</code>, où
+      l'horodatage est l'en-tête <code>X-SYNSEC-Timestamp</code>. Les deux
+      ensemble, pour qu'un message capté ne puisse pas être rejoué plus tard.
+    </p>
+  </div>
+</div>
+{{end}}
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <h2>Ce que reçoit ton destinataire</h2>
+    <pre class="snippet">{{.AlertSample}}</pre>
+    <p class="help">
+      Les valeurs des secrets n'y figurent jamais, ni ici ni dans le journal
+      dont ces messages sont tirés. Le nom du coffre et celui du secret, oui :
+      le message va chez toi, et une alerte qui ne dit pas de quoi elle parle
+      ne sert à rien.
+    </p>
+    <p class="help">
+      <strong>Rafales.</strong> Un balayage automatique produit des milliers de
+      refus en deux minutes. SYNSEC regroupe les événements identiques, n'envoie
+      qu'un message par minute et par type - avec le nombre - et s'arrête au
+      bout de 200 messages dans la journée. Un système d'alerte qui inonde est
+      un système qu'on finit par couper.
+    </p>
+  </div>
+</div>
+{{end}}

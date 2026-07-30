@@ -19,6 +19,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"synsec/internal/alert"
 	"synsec/internal/auth"
 	"synsec/internal/clientip"
 	"synsec/internal/store"
@@ -56,6 +57,7 @@ var pageNames = []string{
 	"search.html",
 	"confirm.html",
 	"serversettings.html",
+	"alerts.html",
 }
 
 // Server renders the browser interface.
@@ -109,6 +111,18 @@ type Server struct {
 	confirmations *confirmations
 
 	throttle *throttle
+
+	// alerts is the watcher following the journal, when one runs. The
+	// interface neither starts it nor feeds it: it reads its state to say
+	// whether the last message got through, and asks it for a test. Nil in
+	// the tests that do not care, and on any build that does not run one.
+	alerts *alert.Watcher
+}
+
+// WithAlerts hands the interface the running alert watcher, so the settings
+// page can show what it is doing and send a test.
+func WithAlerts(w *alert.Watcher) Option {
+	return func(s *Server) { s.alerts = w }
 }
 
 // TrustProxies believes X-Forwarded-For from the named addresses only.
@@ -321,6 +335,12 @@ func (s *Server) Handler() http.Handler {
 	// the journal: it is a rule about everyone, not a preference.
 	mux.HandleFunc("GET /parametres/serveur", s.requireRoot(s.showServerSettings))
 	mux.HandleFunc("POST /parametres/serveur", s.requireRoot(s.saveServerSettings))
+
+	// Les alertes disent ce qui se passe dans tous les coffres : même porte
+	// que le journal, pour la même raison.
+	mux.HandleFunc("GET /parametres/alertes", s.requireRoot(s.showAlerts))
+	mux.HandleFunc("POST /parametres/alertes", s.requireRoot(s.saveAlerts))
+	mux.HandleFunc("POST /parametres/alertes/test", s.requireRoot(s.testAlerts))
 
 	mux.HandleFunc("GET /journal", s.requireAuditReader(s.showAudit))
 	// Handing the journal to someone else is the root account's alone, so it

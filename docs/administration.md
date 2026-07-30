@@ -487,6 +487,113 @@ compromise, le chiffrement ne vaut plus rien et la seule question qui reste est
 ce que l'intrus a consulté - un journal des seules écritures serait aveugle à
 ça.
 
+## Être prévenu
+
+Le journal enregistre tout, mais un journal ne réveille personne. SYNSEC peut
+envoyer un message quand quelque chose sort de l'ordinaire.
+
+**Paramètres / Alertes**, réservé au compte principal comme le journal : ce qui
+est annoncé traverse tous les coffres, et l'adresse à qui c'est annoncé est un
+endroit où les noms de tes secrets finissent.
+
+### Ce qui déclenche
+
+Trois niveaux, à choisir selon ce que tu veux voir arriver sur ton téléphone.
+
+| Niveau | Ce qui part |
+|---|---|
+| **Critique** | appareil refusé par le filtrage d'adresse, accès refusé, coffre ou secret supprimé, serveur rouvert avec le code de récupération, adresse bloquée après trop de mots de passe ratés |
+| **Avertissement** | tout ce qui précède, plus : accès donné à un coffre, secret partagé, appareil créé ou élargi, compte créé ou supprimé, second facteur retiré, règle du serveur modifiée |
+| **Tout** | tout ce qui précède, plus : mots de passe ratés, imports, adresses jamais vues, retours à une version précédente |
+
+Les lectures ordinaires ne partent jamais, à aucun niveau. Une maison en fait
+quelques milliers par semaine, et une notification à cette fréquence est une
+notification que plus personne ne lit. La question « qui a ouvert ce secret »
+se lit sur la page du secret.
+
+**Adresse jamais vue** mérite une explication. SYNSEC retient les adresses d'où
+chaque compte et chaque appareil se manifestent. La toute première est apprise
+en silence : un appareil doit bien parler de quelque part la première fois.
+Celles d'après sont signalées. Ton téléphone sur le wifi du bureau, c'est ça.
+Ton appareil domotique depuis une adresse à l'autre bout du monde, c'est ça
+aussi, et c'est toi qui fais la différence.
+
+### Où ça part
+
+Un POST JSON à l'adresse de ton choix : Home Assistant, ntfy, Gotify, un salon
+Discord, ou ton propre script. Aucun service tiers, aucun quota.
+
+```
+synsec alertes webhook https://domotique.maison:8123/api/webhook/synsec -user cyril
+synsec alertes niveau avertissement -user cyril
+synsec alertes activer -user cyril
+synsec alertes test -user cyril
+```
+
+L'adresse et la clé de signature sont **chiffrées avec la clé racine**, comme
+un secret : une URL Discord ou ntfy est elle-même un mot de passe. Conséquence
+assumée : un serveur scellé n'envoie rien, puisqu'il ne peut pas les lire. Il
+ne sert plus aucun secret non plus, il n'a donc rien à raconter.
+
+### Vérifier que le message vient bien de SYNSEC
+
+Chaque envoi porte deux en-têtes :
+
+```
+X-SYNSEC-Timestamp: 1785380047
+X-SYNSEC-Signature: sha256=4f3c...
+```
+
+La signature couvre l'horodatage **et** le corps, pour qu'un message capté une
+fois ne puisse pas être rejoué plus tard :
+
+```
+signature = "sha256=" + hmac_sha256(clé, horodatage + "." + corps)
+```
+
+En Python, côté réception :
+
+```python
+import hmac, hashlib
+
+def valide(cle, entetes, corps):
+    attendu = "sha256=" + hmac.new(
+        cle.encode(),
+        (entetes["X-SYNSEC-Timestamp"] + ".").encode() + corps,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(attendu, entetes["X-SYNSEC-Signature"])
+```
+
+Sans cette vérification, n'importe quoi capable d'atteindre ton destinataire
+peut inventer une alerte, ou noyer une vraie sous cent fausses.
+
+### Ce qui empêche l'inondation
+
+C'est la partie qui décide si le système est utilisable. Un balayage
+automatique produit des milliers de refus en deux minutes.
+
+- Les événements identiques sont **regroupés** : un seul message, avec le
+  nombre (« 1 847 fois »).
+- Un même type ne repart pas plus d'**une fois par minute**. Ce qui arrive
+  entre-temps s'accumule et part avec le message suivant.
+- **200 messages par jour** au maximum. Le plafond atteint, SYNSEC le dit une
+  fois puis se tait jusqu'au lendemain. Le journal, lui, continue de tout
+  enregistrer.
+
+### Ce qui ne part jamais
+
+La valeur d'un secret. Ni ici, ni dans le journal dont ces messages sont tirés.
+Le nom du coffre et celui du secret, en revanche, oui : le message va chez toi,
+et une alerte qui ne dit pas de quoi elle parle ne sert à rien.
+
+### Une commande lancée pendant l'arrêt du serveur
+
+Les alertes suivent le journal, pas les gestionnaires de l'interface. Une
+suppression faite en ligne de commande, service arrêté, est signalée au
+redémarrage suivant - ce qui est précisément le cas qu'un branchement dans les
+pages web aurait manqué.
+
 ## Faire tourner une clé de coffre
 
 Si tu soupçonnes qu'une clé a fui :
@@ -593,6 +700,7 @@ synsec coffre create|list|supprimer|partager|membres|retirer|rotation
 synsec secret set|get|list|rm|partager|partages|retirer|reseau
 synsec token create|list|portee|revoke
 synsec maintenance nettoyer      compacte la base, efface les pages libérées
+synsec alertes                   webhook|niveau|activer|desactiver|test
 ```
 
 Chaque commande accepte `-h`. Les options se placent avant ou après les

@@ -48,6 +48,8 @@ var commands = map[string]func(args []string) error{
 	"recover":     runRecover,
 	"recuperer":   runRecover,
 	"maintenance": runMaintenance,
+	"alertes":     runAlerts,
+	"alerts":      runAlerts,
 }
 
 func main() {
@@ -109,6 +111,7 @@ Commandes :
   service      Installe SYNSEC en service, pour un démarrage automatique
   recover      Rouvre le coffre avec le code de récupération imprimé
   maintenance  Réécrit la base pour effacer ce que les suppressions ont libéré
+  alertes      Prévient quand quelque chose sort de l'ordinaire
 
 Aide d'une commande :
   synsec coffre -h

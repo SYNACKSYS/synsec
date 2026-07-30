@@ -84,6 +84,18 @@ Options :
 		return fmt.Errorf("le coffre s'est ouvert, mais n'a pas pu être re-scellé à cette machine : %w", err)
 	}
 
+	// The single most sensitive act on this server: the root key was opened by
+	// someone holding a piece of paper, and re-sealed to whatever machine they
+	// were standing at. Written down even though nobody is signed in here, and
+	// picked up as an alert the next time the server starts.
+	if err := db.AppendAudit(ctx, store.AuditEntry{
+		ActorKind: store.ActorSystem,
+		Action:    "vault.recovered",
+		Detail:    "code de récupération, re-scellé sur " + provider.Name(),
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "note : journal d'audit non écrit (%v)\n", err)
+	}
+
 	fmt.Println()
 	fmt.Println("Coffre rouvert et re-scellé à cette machine.")
 	fmt.Printf("Protection : %s\n", provider.Name())

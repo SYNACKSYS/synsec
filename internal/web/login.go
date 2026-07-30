@@ -89,6 +89,17 @@ type pageData struct {
 	// than offered: it is the operator's setting, not a preference.
 	SessionIdle string
 
+	// The alert settings: where messages go, how loud, and whether the last
+	// one arrived. AlertSecret is the signing key, shown so the receiving end
+	// can be set up with it.
+	AlertURL     string
+	AlertSecret  string
+	AlertEnabled bool
+	AlertLevel   string
+	AlertLevels  []alertLevelRow
+	AlertStatus  *alertStatusRow
+	AlertSample  string
+
 	// The second factor: whether it is on, the secret being offered for
 	// enrolment, and the one-time codes shown exactly once.
 	TOTPEnabled bool
@@ -568,4 +579,23 @@ type networkRow struct {
 	Network string
 	AddedAt time.Time
 	AddedBy string
+}
+
+// alertLevelRow is one of the three loudness settings, on the alerts page.
+type alertLevelRow struct {
+	Value  string
+	Label  string
+	Hint   string
+	Chosen bool
+}
+
+// alertStatusRow is what the watcher has been doing, so a configuration that
+// silently stopped working can be seen rather than assumed.
+type alertStatusRow struct {
+	LastAttempt time.Time
+	LastSuccess time.Time
+	LastError   string
+	Sent        int
+	Failed      int
+	Capped      bool
 }

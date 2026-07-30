@@ -165,6 +165,57 @@ func (db *DB) ListAudit(ctx context.Context, f AuditFilter) ([]AuditEntry, error
 	return out, nil
 }
 
+// AuditSince returns the entries written after a given identifier, oldest
+// first, so a reader can follow the log as it grows.
+//
+// Ordered and paged by id rather than by time: two entries can share a second,
+// and a reader that paged by time would either repeat them or skip them. The
+// identifier is assigned by the database in insertion order, which is exactly
+// the order somebody following the log wants.
+func (db *DB) AuditSince(ctx context.Context, afterID int64, limit int) ([]AuditEntry, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, at, actor_kind, actor_id, actor_label, action, target, ip, detail, project_id
+		  FROM audit_log WHERE id > ? ORDER BY id LIMIT ?`, afterID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("store: reading the log since %d: %w", afterID, err)
+	}
+	defer rows.Close()
+
+	var out []AuditEntry
+	for rows.Next() {
+		var (
+			e  AuditEntry
+			at int64
+		)
+		if err := rows.Scan(&e.ID, &at, &e.ActorKind, &e.ActorID, &e.ActorLabel,
+			&e.Action, &e.Target, &e.IP, &e.Detail, &e.ProjectID); err != nil {
+			return nil, fmt.Errorf("store: scanning audit entry: %w", err)
+		}
+		e.At = time.Unix(at, 0)
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("store: iterating audit entries: %w", err)
+	}
+	return out, nil
+}
+
+// LastAuditID is the identifier of the most recent entry, or zero on an empty
+// log. A follower starting for the first time begins here rather than at the
+// beginning: an installation upgraded after a year would otherwise announce
+// its entire history at once.
+func (db *DB) LastAuditID(ctx context.Context) (int64, error) {
+	var id int64
+	if err := db.QueryRowContext(ctx,
+		`SELECT COALESCE(MAX(id), 0) FROM audit_log`).Scan(&id); err != nil {
+		return 0, fmt.Errorf("store: reading the last audit id: %w", err)
+	}
+	return id, nil
+}
+
 // escapeLike neutralises the wildcards in a term typed into a search box.
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)

@@ -80,3 +80,27 @@ func UnwrapDEK(root *Key, projectID string, blob []byte) (*Key, error) {
 	}
 	return KeyFrom(raw)
 }
+
+// SealSetting encrypts a piece of configuration that is itself a credential -
+// the address of a webhook, the key used to sign what is sent to it.
+//
+// Directly under the root key, with no key of its own: there is one of each of
+// these, they are read at start-up and when somebody edits them, and a per
+// setting key would be one more thing to rotate for no gain.
+//
+// The name is bound into the AAD, so a value copied from one setting to
+// another fails to open instead of being read as something it never was.
+func SealSetting(root *Key, domain, name string, plaintext []byte) ([]byte, error) {
+	if domain == "" || name == "" {
+		return nil, fmt.Errorf("crypto: a sealed setting needs a domain and a name")
+	}
+	return seal(root, bindAAD("synsec/setting/v1", domain, name), plaintext)
+}
+
+// OpenSealedSetting recovers one.
+func OpenSealedSetting(root *Key, domain, name string, blob []byte) ([]byte, error) {
+	if domain == "" || name == "" {
+		return nil, fmt.Errorf("crypto: a sealed setting needs a domain and a name")
+	}
+	return open(root, bindAAD("synsec/setting/v1", domain, name), blob)
+}

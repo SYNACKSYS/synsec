@@ -53,6 +53,7 @@
       {{end}}
       {{if .User.IsRoot}}
       <a href="/parametres/serveur" {{if eq .Nav "serveur"}}aria-current="page"{{end}}>Sécurité du serveur</a>
+      <a href="/parametres/alertes" {{if eq .Nav "alertes"}}aria-current="page"{{end}}>Alertes</a>
       {{end}}
       {{if .CanReadAudit}}
       <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>

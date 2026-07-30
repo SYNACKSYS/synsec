@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Confirme ton mot de passe</h1>
+    <p class="subtitle">
+      L'action que tu viens de demander ne se défait pas. Un navigateur laissé
+      ouvert est une session comme une autre : pour ce genre de chose, SYNSEC
+      veut la personne, pas l'onglet.
+    </p>
+  </div>
+</div>
+
+<div class="card card-narrow">
+  <div class="card-body">
+    <form method="post" action="/confirmer">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="retour" value="{{.Back}}">
+
+      <div class="field">
+        <label for="password">Ton mot de passe</label>
+        <input id="password" name="password" type="password"
+               autocomplete="current-password" autofocus required>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Confirmer</button>
+        <a class="btn btn-ghost" href="{{.Back}}">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<p class="hint">
+  Une fois confirmé, tu as quelques minutes pour enchaîner sans qu'on te le
+  redemande. Reviens ensuite sur la page et relance l'action : elle n'a pas été
+  exécutée.
+</p>
+{{end}}

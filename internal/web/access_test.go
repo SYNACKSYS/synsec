@@ -54,6 +54,7 @@ func (h *harness) signInAs(t *testing.T, username string) {
 	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("signing in as %s returned %d", username, resp.StatusCode)
 	}
+	h.confirm(t)
 }
 
 // A vault nobody granted must be absent from the list, not merely read-only.

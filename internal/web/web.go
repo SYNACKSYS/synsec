@@ -54,6 +54,7 @@ var pageNames = []string{
 	"audit_access.html",
 	"settings.html",
 	"search.html",
+	"confirm.html",
 	"serversettings.html",
 }
 
@@ -102,6 +103,10 @@ type Server struct {
 	// restart cancels a ceremony, which costs one retry.
 	challenges *challengeStore
 	freshCodes *codeStash
+
+	// confirmations remembers which sessions have given their password again
+	// recently, so an irreversible action asks the person rather than the tab.
+	confirmations *confirmations
 
 	throttle *throttle
 }
@@ -178,6 +183,7 @@ func New(v *vault.Manager, opts ...Option) (*Server, error) {
 		throttle:      newThrottle(),
 		challenges:    newChallengeStore(),
 		freshCodes:    newCodeStash(),
+		confirmations: newConfirmations(),
 	}
 	s.clients, _ = clientip.New(nil)
 
@@ -287,6 +293,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /coffres/{id}/membres", s.requireLogin(s.showMembers))
 	mux.HandleFunc("POST /coffres/{id}/membres", s.requireLogin(s.addMember))
 	mux.HandleFunc("POST /coffres/{id}/membres/retirer", s.requireLogin(s.removeMember))
+
+	// Asked before anything irreversible, and exempt from the check itself.
+	mux.HandleFunc("GET /confirmer", s.requireLogin(s.showConfirm))
+	mux.HandleFunc("POST /confirmer", s.requireLogin(s.doConfirm))
 
 	mux.HandleFunc("GET /parametres", s.requireLogin(s.showSettings))
 	mux.HandleFunc("POST /parametres/apparence", s.requireLogin(s.saveAppearance))

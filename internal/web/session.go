@@ -120,6 +120,14 @@ func (s *Server) requireLogin(h http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx = context.WithValue(ctx, ctxCanReadAudit, canAudit)
 
+		// Something irreversible asks for the password again, once every few
+		// minutes. Checked here for the same reason as the policy below: a
+		// handler added later is covered the day it is written.
+		if s.needsConfirmation(r, token) {
+			http.Redirect(w, r, "/confirmer?retour="+urlEncode(returnTo(r)), http.StatusSeeOther)
+			return
+		}
+
 		// The policy is applied here rather than in each handler, so a page
 		// added later is covered the day it is written.
 		if s.mustEnrol(r, user) {

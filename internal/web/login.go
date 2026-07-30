@@ -410,6 +410,9 @@ func (s *Server) doLogout(w http.ResponseWriter, r *http.Request) {
 			Action: "auth.signout",
 		})
 	}
+	if token, ok := r.Context().Value(ctxSessionToken).(string); ok {
+		s.confirmations.drop(token)
+	}
 	s.clearSessionCookie(w)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }

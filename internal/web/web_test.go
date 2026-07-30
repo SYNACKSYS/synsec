@@ -125,6 +125,16 @@ func (h *harness) loginToken(t *testing.T) string {
 
 func (h *harness) signIn(t *testing.T) {
 	t.Helper()
+	h.signInRaw(t)
+	// A signed-in test stands for somebody sitting at the machine, so it has
+	// also just proved it. The gate itself is tested through signInRaw, which
+	// stops at the session.
+	h.confirm(t)
+}
+
+// signInRaw opens a session and nothing more.
+func (h *harness) signInRaw(t *testing.T) {
+	t.Helper()
 	resp := h.post(t, "/login", url.Values{
 		"login_csrf": {h.loginToken(t)},
 		"username":   {"cyril"},
@@ -493,5 +503,21 @@ func TestALockedAddressIsNotSweptAway(t *testing.T) {
 	th.fail("198.51.100.1", now.Add(30*time.Second))
 	if _, blocked := th.blocked("192.0.2.10", now.Add(30*time.Second)); !blocked {
 		t.Fatal("the sweep released an address still serving its lockout")
+	}
+}
+
+// confirm gives the password again, the way the interface asks before
+// something irreversible. Written out in each test that needs it rather than
+// folded into signIn: a test that deletes should say that it confirmed.
+func (h *harness) confirm(t *testing.T) {
+	t.Helper()
+	resp := h.post(t, "/confirmer", url.Values{
+		"csrf": {h.csrf(t)}, "password": {testPassword}, "retour": {"/"},
+	})
+	if resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("la confirmation a renvoyé %d", resp.StatusCode)
+	}
+	if loc := resp.Header.Get("Location"); strings.Contains(loc, "erreur=") {
+		t.Fatalf("la confirmation a été refusée : %s", loc)
 	}
 }

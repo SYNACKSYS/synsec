@@ -58,7 +58,7 @@ synsec secret - gère les secrets d'un coffre
   synsec secret versions <coffre> <nom>
   synsec secret revenir  <coffre> <nom> <version>
 
-  synsec secret partager <coffre> <nom> <utilisateur> [-role lecture|écriture]
+  synsec secret partager <coffre> <nom> <utilisateur> [-role lecture|écriture] -user <nom>
   synsec secret partages <coffre> <nom>
   synsec secret retirer  <coffre> <nom> <utilisateur>
 

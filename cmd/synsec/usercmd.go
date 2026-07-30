@@ -261,7 +261,7 @@ func runUserRemove(args []string) error {
 			}
 			return fmt.Errorf("« %s » est le seul gestionnaire de %s.\n"+
 				"        Donne la gestion à quelqu'un d'autre avant de supprimer ce compte :\n"+
-				"          synsec coffre partager <coffre> <utilisateur> -role gestion",
+				"          synsec coffre partager <coffre> <utilisateur> -role gestion -user <nom>",
 				u.Username, strings.Join(names, ", "))
 		}
 

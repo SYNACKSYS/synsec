@@ -47,12 +47,14 @@ synsec coffre - gère les coffres
   synsec coffre supprimer <coffre> -confirmer <nom|identifiant> -user <nom>
   synsec coffre rotation  <coffre>
 
-  synsec coffre partager  <coffre> <utilisateur> [-role lecture|écriture|gestion]
+  synsec coffre partager  <coffre> <utilisateur> [-role lecture|écriture|gestion] -user <nom>
   synsec coffre membres   <coffre>
   synsec coffre retirer   <coffre> <utilisateur>
 
 Un coffre est invisible pour qui n'y a pas accès - il n'apparaît pas dans son
 interface. Pour ne confier qu'un seul secret, voir « synsec secret partager ».
+
+Donner accès à un coffre demande le mot de passe d'un compte qui le gère.
 
 Supprimer un coffre emporte ses secrets, leur historique et ses appareils. Il
 n'y a pas de corbeille : seule une sauvegarde antérieure les ramène.

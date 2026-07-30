@@ -41,12 +41,16 @@ func usageToken() error {
 synsec token - connecte un appareil à un coffre
 
   synsec token create <coffre> <nom> [-write] [-expires 720h] [-ip 192.168.1.10]
-                                     [-secret mqtt_password,cle_wifi]
+                                     [-secret mqtt_password,cle_wifi] -user <nom>
   synsec token list   [coffre]
-  synsec token portee <identifiant> [secret,secret]
+  synsec token portee <identifiant> [secret,secret] [-user <nom>]
   synsec token revoke <identifiant>
 
 Le token n'est affiché qu'une seule fois, à sa création.
+
+Créer un token, ou changer sa portée, demande le mot de passe d'un compte qui
+gère le coffre. Le révoquer ne demande rien : retirer un accès ne se refuse
+pas.
 
 Sans -secret, le token atteint tout le coffre. Avec, il n'atteint que ce qui
 est nommé - et un secret créé ensuite ne s'y ajoute pas tout seul.
@@ -62,16 +66,33 @@ func runTokenCreate(args []string) error {
 	expires := fs.Duration("expires", 0, "durée de validité (0 = illimitée)")
 	ips := fs.String("ip", "", "adresses autorisées, séparées par des virgules (IP ou CIDR)")
 	secrets := fs.String("secret", "", "secrets accessibles, séparés par des virgules (défaut : tout le coffre)")
+	who := identityFlag(fs)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
-		return errors.New("usage : synsec token create <coffre> <nom>")
+		return errors.New("usage : synsec token create <coffre> <nom> -user <compte>")
 	}
 
 	return withStore(*dataDir, func(ctx context.Context, db *store.DB) error {
 		p, err := resolveVault(ctx, db, fs.Arg(0))
 		if err != nil {
+			return err
+		}
+
+		// A token is a credential that works from anywhere on the network,
+		// without a password, until somebody revokes it. Minting one is
+		// therefore an act that grants access, and it is held to the same
+		// proof as any other: who are you, and may you manage this vault.
+		//
+		// Without this, reaching the data directory was enough to walk away
+		// with a durable remote credential that no line of the journal
+		// attributed to anyone.
+		user, err := authenticate(ctx, db, *who)
+		if err != nil {
+			return err
+		}
+		if err := requireVaultRole(ctx, db, user, p, store.RoleManager); err != nil {
 			return err
 		}
 
@@ -92,7 +113,7 @@ func runTokenCreate(args []string) error {
 			CanWrite:    *write,
 			IPAllowlist: splitList(*ips),
 			Secrets:     splitList(*secrets),
-			CreatedBy:   "cli",
+			CreatedBy:   user.Username,
 		}
 		if *expires > 0 {
 			tok.ExpiresAt = time.Now().Add(*expires)
@@ -101,6 +122,7 @@ func runTokenCreate(args []string) error {
 			return err
 		}
 
+		auditCLI(ctx, db, user, "token.create", tok.Name)
 		printToken(p, tok, plaintext)
 		return nil
 	})
@@ -246,11 +268,12 @@ func tokenScope(tok store.ServiceToken) string {
 func runTokenScope(args []string) error {
 	fs := flag.NewFlagSet("token portee", flag.ExitOnError)
 	dataDir := fs.String("data", "", "dossier de données")
+	who := identityFlag(fs)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
 	if fs.NArg() < 1 || fs.NArg() > 2 {
-		return errors.New("usage : synsec token portee <identifiant> [secret,secret]")
+		return errors.New("usage : synsec token portee <identifiant> [secret,secret] [-user <compte>]")
 	}
 
 	return withStore(*dataDir, func(ctx context.Context, db *store.DB) error {
@@ -270,10 +293,27 @@ func runTokenScope(args []string) error {
 			return nil
 		}
 
+		// Changing a scope can only widen or narrow what an existing remote
+		// credential reaches, so it is a grant and asks like one. Creating the
+		// token already did; changing it afterwards must not be the cheaper
+		// way round.
+		p, err := db.Project(ctx, tok.ProjectID)
+		if err != nil {
+			return err
+		}
+		user, err := authenticate(ctx, db, *who)
+		if err != nil {
+			return err
+		}
+		if err := requireVaultRole(ctx, db, user, p, store.RoleManager); err != nil {
+			return err
+		}
+
 		names := splitList(fs.Arg(1))
 		if err := db.SetTokenSecrets(ctx, tok.ID, names); err != nil {
 			return err
 		}
+		auditCLI(ctx, db, user, "token.scope", tok.Name)
 		if len(names) == 0 {
 			fmt.Printf("%s atteint de nouveau tout le coffre.\n", tok.Name)
 			return nil

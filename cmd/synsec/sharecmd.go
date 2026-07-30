@@ -44,11 +44,12 @@ func runVaultShare(args []string) error {
 	fs := flag.NewFlagSet("coffre partager", flag.ExitOnError)
 	dataDir := fs.String("data", "", "dossier de données")
 	roleName := fs.String("role", "lecture", "lecture, écriture ou gestion")
+	who := identityFlag(fs)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
 	if fs.NArg() != 2 {
-		return errors.New("usage : synsec coffre partager <coffre> <utilisateur> [-role lecture]")
+		return errors.New("usage : synsec coffre partager <coffre> <utilisateur> [-role lecture] -user <compte>")
 	}
 
 	role, err := parseRole(*roleName, true)
@@ -66,9 +67,25 @@ func runVaultShare(args []string) error {
 			return err
 		}
 
-		if err := db.SetVaultMember(ctx, p.ID, u.ID, role, "cli"); err != nil {
+		// The widest grant SYNSEC can make: a whole vault, up to and including
+		// the right to hand it on again. It is held to the same proof as the
+		// per-secret share next to it, which it plainly outranks.
+		//
+		// Left ungated, reaching the data directory was enough to add oneself
+		// to any vault as gestionnaire, and the journal recorded the author as
+		// "cli".
+		user, err := authenticate(ctx, db, *who)
+		if err != nil {
 			return err
 		}
+		if err := requireVaultRole(ctx, db, user, p, store.RoleManager); err != nil {
+			return err
+		}
+
+		if err := db.SetVaultMember(ctx, p.ID, u.ID, role, user.Username); err != nil {
+			return err
+		}
+		auditCLI(ctx, db, user, "vault.share", p.Name+" -> "+u.Username)
 		fmt.Printf("« %s » a maintenant l'accès en %s au coffre « %s ».\n",
 			u.Username, role.Label(), p.Name)
 		return nil
@@ -150,11 +167,12 @@ func runSecretShare(args []string) error {
 	dataDir := fs.String("data", "", "dossier de données")
 	env := fs.String("env", store.DefaultEnvironment, "environnement")
 	roleName := fs.String("role", "lecture", "lecture ou écriture")
+	who := identityFlag(fs)
 	if err := fs.Parse(permute(fs, args)); err != nil {
 		return err
 	}
 	if fs.NArg() != 3 {
-		return errors.New("usage : synsec secret partager <coffre> <nom> <utilisateur> [-role lecture]")
+		return errors.New("usage : synsec secret partager <coffre> <nom> <utilisateur> [-role lecture] -user <compte>")
 	}
 
 	role, err := parseRole(*roleName, false)
@@ -180,9 +198,21 @@ func runSecretShare(args []string) error {
 			return err
 		}
 
-		if err := db.SetSecretShare(ctx, secret.ID, u.ID, role, "cli"); err != nil {
+		// Handing a secret to somebody grants access, so it is held to the
+		// same proof as every other grant - and the journal records who did
+		// it rather than the word "cli".
+		user, err := authenticate(ctx, db, *who)
+		if err != nil {
 			return err
 		}
+		if err := requireVaultRole(ctx, db, user, p, store.RoleManager); err != nil {
+			return err
+		}
+
+		if err := db.SetSecretShare(ctx, secret.ID, u.ID, role, user.Username); err != nil {
+			return err
+		}
+		auditCLI(ctx, db, user, "share.grant", secret.Name)
 		fmt.Printf("%s partagé en %s avec « %s ».\n", secret.Name, role.Label(), u.Username)
 		fmt.Println("Le reste du coffre lui reste inaccessible.")
 		return nil

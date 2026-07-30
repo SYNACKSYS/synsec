@@ -95,9 +95,33 @@ les ramène. Le journal d'audit, lui, garde la trace de la suppression.
 En ligne de commande :
 
 ```
-synsec coffre supprimer Maison -confirmer Maison
-synsec coffre supprimer gfdhugabukzzpbub -confirmer gfdhugabukzzpbub
+synsec coffre supprimer Maison -confirmer Maison -user cyril
+synsec coffre supprimer gfdhugabukzzpbub -confirmer gfdhugabukzzpbub -user cyril
 ```
+
+### Quand SYNSEC redemande ton mot de passe
+
+Certaines actions te renvoient sur une page « Confirme ton mot de passe » avant
+de s'exécuter. Une session ouverte prouve que quelqu'un s'est connecté un jour
+sur cette machine ; elle ne prouve pas que c'est toi qui es devant l'écran
+maintenant. Pour lire un secret, c'est justement à ça qu'elle sert. Pour
+détruire un coffre ou donner accès à quelqu'un, non.
+
+Sont concernées :
+
+- supprimer un coffre, un secret ou un compte ;
+- ajouter un membre à un coffre, partager un secret ;
+- créer un token d'appareil ou élargir sa portée ;
+- réinitialiser le mot de passe de quelqu'un d'autre ;
+- ouvrir le journal d'accès.
+
+Ne le sont pas : lire, écrire, et **retirer** un accès. Retirer se refuse mal,
+et une demande de mot de passe à chaque clic finit par s'obtenir toute seule.
+
+Une fois confirmé, tu as **cinq minutes** pour enchaîner sans qu'on te le
+redemande - le temps de faire le ménage dans plusieurs coffres. La déconnexion
+et le redémarrage du serveur ferment cette fenêtre. L'action que tu avais
+demandée n'a pas été exécutée : reviens sur la page et relance-la.
 
 ### Reprendre ce que tu as déjà
 
@@ -215,7 +239,8 @@ Un partage de secret n'autorise jamais la suppression. Confier un mot de passe
 ne donne pas le pouvoir de le détruire.
 
 Et personne ne peut repasser à un tiers ce qu'on lui a confié : donner accès est
-toujours un droit de gestionnaire du coffre.
+toujours un droit de gestionnaire du coffre. Ton mot de passe est redemandé au
+passage, comme pour toute action qui ouvre un accès.
 
 ### Ta page d'accueil
 
@@ -282,12 +307,13 @@ ligne de l'appareil, ou en ligne de commande :
 
 ```
 synsec token portee <identifiant>
-synsec token portee <identifiant> mot_de_passe_mqtt,cle_zigbee
-synsec token portee <identifiant> ""
+synsec token portee <identifiant> mot_de_passe_mqtt,cle_zigbee -user cyril
+synsec token portee <identifiant> "" -user cyril
 ```
 
-Sans liste, la commande affiche la portée actuelle. Avec une liste vide, elle
-rend le coffre entier.
+Sans liste, la commande affiche la portée actuelle et ne demande rien. Avec une
+liste, elle change ce qu'un appareil atteint : ton mot de passe est demandé, et
+il faut gérer le coffre. Une liste vide rend le coffre entier.
 
 ### Lire un secret
 
@@ -383,11 +409,11 @@ synsec secret get Maison mot_de_passe_mqtt > /tmp/mqtt.txt
 ### Partager
 
 ```
-synsec coffre partager Maison alice -role lecture
+synsec coffre partager Maison alice -role lecture -user cyril
 synsec coffre membres Maison
 synsec coffre retirer Maison alice
 
-synsec secret partager Maison mot_de_passe_mqtt alice -role lecture
+synsec secret partager Maison mot_de_passe_mqtt alice -role lecture -user cyril
 synsec secret partages Maison mot_de_passe_mqtt
 synsec secret retirer Maison mot_de_passe_mqtt alice
 ```
@@ -395,17 +421,28 @@ synsec secret retirer Maison mot_de_passe_mqtt alice
 Les rôles s'écrivent en français - `lecture`, `écriture`, `gestion` - ou sous
 leur nom stocké - `reader`, `writer`, `manager`.
 
+Donner un accès demande ton mot de passe et le droit de **gestion** sur le
+coffre, exactement comme dans le navigateur : la ligne de commande tourne à
+côté de la base, ce n'est pas une raison pour que ce soit le chemin le plus
+court vers le coffre de quelqu'un d'autre. Le journal retient ton nom de
+compte. Retirer un accès ne demande rien.
+
 ### Les tokens
 
 ```
 synsec token list
 synsec token list Maison
 synsec token portee <identifiant>
+synsec token portee <identifiant> mot_de_passe_mqtt -user cyril
 synsec token revoke <identifiant>
 ```
 
 La liste montre la portée de chaque appareil : le nom des secrets qu'il
 atteint, ou « tout le coffre ».
+
+Créer un token ou **changer** sa portée demande ton mot de passe et le droit de
+gestion : un token est un accès permanent, sans mot de passe, depuis n'importe
+où sur le réseau. Le lire et le révoquer ne demandent rien.
 
 Un token révoqué reste dans la liste, marqué comme tel : le journal d'audit
 continue de pointer vers quelque chose qui a un nom.

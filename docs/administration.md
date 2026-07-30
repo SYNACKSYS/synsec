@@ -32,6 +32,24 @@ d'autre.
 > accès laisse une trace nominative. Ce n'est pas rien, mais ce n'est pas une
 > garantie.
 
+### Ce qui demande le mot de passe une seconde fois
+
+Deux familles d'actions ne se contentent pas d'une session ouverte : celles qui
+ne se défont pas, et celles qui **donnent** un accès. Supprimer un coffre, un
+secret ou un compte ; ajouter un membre ; partager un secret ; créer un token
+ou élargir sa portée ; réinitialiser le mot de passe de quelqu'un ; ouvrir le
+journal d'accès.
+
+Dans le navigateur, SYNSEC affiche une page de confirmation, puis laisse cinq
+minutes avant de redemander. En ligne de commande, ces mêmes actions exigent
+`-user` et le mot de passe du compte, et vérifient le rôle sur le coffre : la
+ligne de commande tourne à côté de la base, ce n'est pas une raison pour qu'elle
+soit le chemin court. Le journal nomme le compte, jamais « cli ».
+
+Retirer un accès - révoquer un token, retirer un membre ou un partage - ne
+demande rien : ça échoue du bon côté, et une demande de mot de passe à chaque
+clic finit par s'obtenir toute seule.
+
 ## Les comptes
 
 ### Depuis l'interface
@@ -564,9 +582,10 @@ synsec service status
 synsec service uninstall
 
 synsec utilisateur create|list|passwd|rm
-synsec coffre create|list|partager|membres|retirer
+synsec coffre create|list|supprimer|partager|membres|retirer|rotation
 synsec secret set|get|list|rm|partager|partages|retirer|reseau
-synsec token create|list|revoke
+synsec token create|list|portee|revoke
+synsec maintenance nettoyer      compacte la base, efface les pages libérées
 ```
 
 Chaque commande accepte `-h`. Les options se placent avant ou après les
@@ -582,4 +601,4 @@ arguments, indifféremment.
 | `SYNSEC_TRUSTED_PROXIES` | adresses des proxies dont X-Forwarded-For est cru |
 | `SYNSEC_WEB_ALLOW` | restreint l'interface web à ces adresses ou blocs CIDR |
 | `SYNSEC_AUDIT_RETAIN` | conservation du journal, par exemple `8760h` ; vide = sans limite |
-| `SYNSEC_USER` | compte utilisé par les commandes qui touchent un secret |
+| `SYNSEC_USER` | compte utilisé par les commandes qui touchent un secret ou donnent un accès |

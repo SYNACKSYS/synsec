@@ -462,6 +462,13 @@ Deux garde-fous : l'accès ne s'ouvre qu'à un administrateur et se referme tout
 seul si on lui retire le drapeau ; et le compte principal ne peut pas être
 supprimé, sans quoi plus personne ne pourrait jamais rouvrir cette porte.
 
+Une exception, étroite : la page d'un secret montre ses vingt-cinq dernières
+consultations à qui **gère le coffre**. C'est le journal réduit à une seule
+ligne de la base, sans rien du reste du serveur, et ça répond à la question que
+se pose la personne responsable d'un secret plutôt qu'à celle de l'opérateur.
+Chaque entrée porte désormais le coffre concerné, pour que deux coffres ayant
+un secret du même nom ne se mélangent jamais.
+
 ### En SQL
 
 Pour une requête que l'interface ne sait pas faire, avec n'importe quel client

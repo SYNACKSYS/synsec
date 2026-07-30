@@ -63,6 +63,7 @@ func (s *Server) createVault(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "vault.create", Target: vault.Name,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, "/coffres/"+vault.ID, http.StatusSeeOther)
 }
@@ -174,7 +175,8 @@ func (s *Server) deleteVault(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "vault.delete", Target: vault.Name,
-		Detail: strconv.Itoa(len(secrets)) + " " + plural(len(secrets), "secret", "secrets"),
+		ProjectID: vault.ID,
+		Detail:    strconv.Itoa(len(secrets)) + " " + plural(len(secrets), "secret", "secrets"),
 	})
 	s.redirectWithNotice(w, r, "/",
 		"Coffre « "+vault.Name+" » supprimé, avec ses secrets et ses appareils.")
@@ -261,7 +263,20 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.read", Target: secret.Name,
+		ProjectID: vault.ID,
 	})
+
+	// Who has opened it, for whoever manages the vault. Read after the line
+	// above is written, so the visit being made right now appears at the top:
+	// the surest way to understand what this list contains is to find oneself
+	// in it.
+	var views []viewRow
+	if role.AtLeast(store.RoleManager) {
+		if views, err = s.viewsOf(r, vault.ID, secret.Name); err != nil {
+			s.fail(w, r, user, err)
+			return
+		}
+	}
 
 	s.render(w, r, "secret.html", http.StatusOK, pageData{
 		Title:  secret.Name,
@@ -281,8 +296,48 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request) {
 		CanSeeVault: canSeeVault,
 		Networks:    networks,
 		Versions:    versions,
+		Views:       views,
 		Back:        back,
 	})
+}
+
+// viewsMax is how far back the page looks. Enough to answer "what happened
+// lately", short enough that the page stays a page. The whole story is in the
+// journal, which is the tool for questions this list cannot answer.
+const viewsMax = 25
+
+// viewsOf reads who opened one secret, and who was refused it.
+//
+// Held to the vault as well as the name: two vaults may each hold a
+// "mot_de_passe_mqtt", and a list that mixed them would say something false
+// about people who never touched this one.
+func (s *Server) viewsOf(r *http.Request, projectID, name string) ([]viewRow, error) {
+	entries, err := s.vault.DB().ListAudit(r.Context(), store.AuditFilter{
+		ProjectID: projectID,
+		Target:    name,
+		Actions:   []string{"secret.read", "access.denied"},
+		Limit:     viewsMax,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]viewRow, 0, len(entries))
+	for _, e := range entries {
+		who := e.ActorLabel
+		if who == "" {
+			who = "compte supprimé"
+		}
+		rows = append(rows, viewRow{
+			At:     e.At,
+			Who:    who,
+			Device: e.ActorKind == store.ActorToken,
+			IP:     e.IP,
+			Denied: e.Action == "access.denied",
+			Why:    e.Detail,
+		})
+	}
+	return rows, nil
 }
 
 // versionsOf reads a secret's history for display.
@@ -342,7 +397,8 @@ func (s *Server) revertSecret(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.revert", Target: secret.Name,
-		Detail: "v" + strconv.FormatInt(version, 10) + " reprise en v" + strconv.FormatInt(restored.CurrentVersion, 10),
+		ProjectID: vault.ID,
+		Detail:    "v" + strconv.FormatInt(version, 10) + " reprise en v" + strconv.FormatInt(restored.CurrentVersion, 10),
 	})
 	s.redirectWithNotice(w, r, back, "Valeur de la version "+strconv.FormatInt(version, 10)+
 		" rétablie, enregistrée en version "+strconv.FormatInt(restored.CurrentVersion, 10)+".")
@@ -487,6 +543,7 @@ func (s *Server) saveSecret(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.write", Target: name,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -519,6 +576,7 @@ func (s *Server) deleteSecret(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.delete", Target: name,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, "/coffres/"+vault.ID, http.StatusSeeOther)
 }

@@ -125,7 +125,8 @@ func (s *Server) runImport(w http.ResponseWriter, r *http.Request) {
 		s.audit(r, store.AuditEntry{
 			ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 			Action: "secret.import", Target: vault.Name,
-			Detail: filename + " : " + plural(written, "1 secret", itoa(written)+" secrets"),
+			ProjectID: vault.ID,
+			Detail:    filename + " : " + plural(written, "1 secret", itoa(written)+" secrets"),
 		})
 	}
 

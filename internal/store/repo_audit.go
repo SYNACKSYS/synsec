@@ -29,6 +29,10 @@ type AuditEntry struct {
 	Target     string
 	IP         string
 	Detail     string
+	// ProjectID is the vault the line is about, when it is about one. Two
+	// vaults may hold a secret of the same name, so the name alone cannot
+	// answer "who opened this one".
+	ProjectID string
 }
 
 // AuditFilter narrows a query. Zero fields are ignored.
@@ -43,6 +47,16 @@ type AuditFilter struct {
 	Since  time.Time
 	Until  time.Time
 	Limit  int
+
+	// ProjectID and Target narrow to one vault, and to one exact name inside
+	// it. Unlike Search they do not match around: the history shown on a
+	// secret's page must be that secret's, not everything whose name contains
+	// it.
+	ProjectID string
+	Target    string
+	// Actions matches any of several, for a page asking a question that spans
+	// more than one kind of line.
+	Actions []string
 }
 
 // AppendAudit adds a line. Nothing in SYNSEC ever updates or deletes one.
@@ -59,9 +73,9 @@ func (db *DB) AppendAudit(ctx context.Context, e AuditEntry) error {
 	}
 
 	if _, err := db.ExecContext(ctx, `
-		INSERT INTO audit_log (at, actor_kind, actor_id, actor_label, action, target, ip, detail)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		at.Unix(), e.ActorKind, e.ActorID, e.ActorLabel, e.Action, e.Target, e.IP, e.Detail,
+		INSERT INTO audit_log (at, actor_kind, actor_id, actor_label, action, target, ip, detail, project_id)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		at.Unix(), e.ActorKind, e.ActorID, e.ActorLabel, e.Action, e.Target, e.IP, e.Detail, e.ProjectID,
 	); err != nil {
 		return fmt.Errorf("store: appending audit entry %q: %w", e.Action, err)
 	}
@@ -70,10 +84,24 @@ func (db *DB) AppendAudit(ctx context.Context, e AuditEntry) error {
 
 // ListAudit returns matching entries, newest first.
 func (db *DB) ListAudit(ctx context.Context, f AuditFilter) ([]AuditEntry, error) {
-	query := `SELECT id, at, actor_kind, actor_id, actor_label, action, target, ip, detail
+	query := `SELECT id, at, actor_kind, actor_id, actor_label, action, target, ip, detail, project_id
 	          FROM audit_log WHERE 1 = 1`
 	var args []any
 
+	if f.ProjectID != "" {
+		query += ` AND project_id = ?`
+		args = append(args, f.ProjectID)
+	}
+	if f.Target != "" {
+		query += ` AND target = ?`
+		args = append(args, f.Target)
+	}
+	if len(f.Actions) > 0 {
+		query += ` AND action IN (?` + strings.Repeat(`, ?`, len(f.Actions)-1) + `)`
+		for _, a := range f.Actions {
+			args = append(args, a)
+		}
+	}
 	if f.ActorKind != "" {
 		query += ` AND actor_kind = ?`
 		args = append(args, f.ActorKind)
@@ -125,7 +153,7 @@ func (db *DB) ListAudit(ctx context.Context, f AuditFilter) ([]AuditEntry, error
 			at int64
 		)
 		if err := rows.Scan(&e.ID, &at, &e.ActorKind, &e.ActorID, &e.ActorLabel,
-			&e.Action, &e.Target, &e.IP, &e.Detail); err != nil {
+			&e.Action, &e.Target, &e.IP, &e.Detail, &e.ProjectID); err != nil {
 			return nil, fmt.Errorf("store: scanning audit entry: %w", err)
 		}
 		e.At = time.Unix(at, 0)

@@ -126,5 +126,9 @@ func (s *Server) auditToken(r *http.Request, tok store.ServiceToken, action, tar
 		Action:     action,
 		Target:     target,
 		Detail:     detail,
+		// A device is tied to one vault, so every line it writes belongs to
+		// that vault - including the refusals, which is exactly what somebody
+		// looking at a secret's page wants to see.
+		ProjectID: tok.ProjectID,
 	})
 }

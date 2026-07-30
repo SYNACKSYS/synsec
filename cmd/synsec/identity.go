@@ -130,14 +130,16 @@ func requireSecretRole(ctx context.Context, db *store.DB, user store.User, p sto
 	return secret, nil
 }
 
-// auditCLI records what was done from the command line, naming the person.
-func auditCLI(ctx context.Context, db *store.DB, user store.User, action, target string) {
+// auditCLI records what was done from the command line, naming the person and
+// the vault it happened in.
+func auditCLI(ctx context.Context, db *store.DB, user store.User, projectID, action, target string) {
 	err := db.AppendAudit(ctx, store.AuditEntry{
 		ActorKind:  store.ActorUser,
 		ActorID:    user.ID,
 		ActorLabel: user.Username,
 		Action:     action,
 		Target:     target,
+		ProjectID:  projectID,
 		Detail:     "ligne de commande",
 	})
 	if err != nil {

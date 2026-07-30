@@ -727,6 +727,14 @@ input[readonly] {
 
 .slug code { font-size: inherit; }
 
+/* A refused attempt, in the list of who opened a secret. Coloured because it
+   is the one line on that page worth stopping on. */
+.pill-warn {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn);
+}
+
 /* A quieter pill, for a level of access rather than a count. */
 .pill-quiet {
   background: var(--surface-2);

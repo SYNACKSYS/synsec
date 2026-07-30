@@ -219,6 +219,26 @@ synsec secret versions Maison mot_de_passe_mqtt
 synsec secret revenir  Maison mot_de_passe_mqtt 2
 ```
 
+### Qui a ouvert ce secret
+
+Plus bas sur la même page, la section **Qui l'a ouvert** montre les dernières
+consultations : la date, le compte ou l'appareil, l'adresse d'où ça venait, et
+si c'était refusé. Ta propre visite est en haut de la liste, puisque l'ouvrir
+compte comme une consultation.
+
+Ce qui se lit là-dedans : un appareil qui vient toutes les cinq minutes, c'est
+sa routine. Le même nom à trois heures du matin depuis une adresse que tu ne
+reconnais pas, ou une ligne **refusé** que tu n'expliques pas, méritent une
+question.
+
+Réservé aux **gestionnaires** du coffre. Voir qui consulte un secret, c'est
+voir qui y a accès, et ça ne regarde pas quelqu'un à qui on a simplement
+confié une valeur.
+
+La liste s'arrête aux vingt-cinq dernières lignes. Pour remonter plus loin, ou
+pour croiser plusieurs coffres, c'est le journal d'audit complet - réservé au
+compte principal.
+
 ### Partager
 
 Deux niveaux, selon ce que tu veux ouvrir.

@@ -135,7 +135,7 @@ func runSecretSet(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, m.DB(), user, "secret.write", sec.Name)
+		auditCLI(ctx, m.DB(), user, p.ID, "secret.write", sec.Name)
 		fmt.Printf("%s enregistré dans « %s » (version %d).\n", sec.Name, p.Name, sec.CurrentVersion)
 		return nil
 	})
@@ -174,7 +174,7 @@ func runSecretGet(args []string) error {
 		if err != nil {
 			return err
 		}
-		auditCLI(ctx, m.DB(), user, "secret.read", fs.Arg(1))
+		auditCLI(ctx, m.DB(), user, p.ID, "secret.read", fs.Arg(1))
 
 		// Written raw, with no trailing newline, so the output can be piped
 		// into another command without picking up a stray byte.
@@ -266,7 +266,7 @@ func runSecretRemove(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, db, user, "secret.delete", fs.Arg(1))
+		auditCLI(ctx, db, user, p.ID, "secret.delete", fs.Arg(1))
 		fmt.Printf("%s supprimé de « %s », avec tout son historique.\n", fs.Arg(1), p.Name)
 		return nil
 	})
@@ -359,7 +359,7 @@ func runSecretRevert(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, m.DB(), user, "secret.revert", fs.Arg(1))
+		auditCLI(ctx, m.DB(), user, p.ID, "secret.revert", fs.Arg(1))
 		fmt.Printf("Valeur de la version %d rétablie, enregistrée en version %d.\n",
 			version, restored.CurrentVersion)
 		fmt.Println("L'historique est intact : rien n'a été effacé.")

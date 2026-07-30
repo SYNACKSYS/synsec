@@ -122,7 +122,7 @@ func runTokenCreate(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, db, user, "token.create", tok.Name)
+		auditCLI(ctx, db, user, p.ID, "token.create", tok.Name)
 		printToken(p, tok, plaintext)
 		return nil
 	})
@@ -313,7 +313,7 @@ func runTokenScope(args []string) error {
 		if err := db.SetTokenSecrets(ctx, tok.ID, names); err != nil {
 			return err
 		}
-		auditCLI(ctx, db, user, "token.scope", tok.Name)
+		auditCLI(ctx, db, user, p.ID, "token.scope", tok.Name)
 		if len(names) == 0 {
 			fmt.Printf("%s atteint de nouveau tout le coffre.\n", tok.Name)
 			return nil

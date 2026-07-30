@@ -85,7 +85,7 @@ func runVaultShare(args []string) error {
 		if err := db.SetVaultMember(ctx, p.ID, u.ID, role, user.Username); err != nil {
 			return err
 		}
-		auditCLI(ctx, db, user, "vault.share", p.Name+" -> "+u.Username)
+		auditCLI(ctx, db, user, p.ID, "vault.share", p.Name+" -> "+u.Username)
 		fmt.Printf("« %s » a maintenant l'accès en %s au coffre « %s ».\n",
 			u.Username, role.Label(), p.Name)
 		return nil
@@ -212,7 +212,7 @@ func runSecretShare(args []string) error {
 		if err := db.SetSecretShare(ctx, secret.ID, u.ID, role, user.Username); err != nil {
 			return err
 		}
-		auditCLI(ctx, db, user, "share.grant", secret.Name)
+		auditCLI(ctx, db, user, p.ID, "share.grant", secret.Name)
 		fmt.Printf("%s partagé en %s avec « %s ».\n", secret.Name, role.Label(), u.Username)
 		fmt.Println("Le reste du coffre lui reste inaccessible.")
 		return nil

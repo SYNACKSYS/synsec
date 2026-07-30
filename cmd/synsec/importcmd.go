@@ -101,7 +101,7 @@ func runImport(args []string) error {
 			written++
 		}
 
-		auditCLI(ctx, m.DB(), user, "secret.import", p.Name)
+		auditCLI(ctx, m.DB(), user, p.ID, "secret.import", p.Name)
 		fmt.Printf("\n%d secret(s) importé(s) dans « %s ».\n", written, p.Name)
 		fmt.Printf("Vérifie-les, puis efface %s : il est toujours en clair.\n", path)
 		return nil

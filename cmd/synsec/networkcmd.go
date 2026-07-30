@@ -116,7 +116,7 @@ func runNetworkAdd(args []string) error {
 		if err := db.AddSecretNetwork(ctx, secret.ID, fs.Arg(2), user.Username); err != nil {
 			return err
 		}
-		auditCLI(ctx, db, user, "secret.pin", secret.Name)
+		auditCLI(ctx, db, user, secret.ProjectID, "secret.pin", secret.Name)
 
 		network, _ := store.ParseNetwork(fs.Arg(2))
 		fmt.Printf("%s : accès autorisé depuis %s.\n", secret.Name, network)
@@ -158,7 +158,7 @@ func runNetworkRemove(args []string) error {
 			}
 			return err
 		}
-		auditCLI(ctx, db, user, "secret.unpin", secret.Name)
+		auditCLI(ctx, db, user, secret.ProjectID, "secret.unpin", secret.Name)
 
 		remaining, err := db.ListSecretNetworks(ctx, secret.ID)
 		if err != nil {

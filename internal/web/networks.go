@@ -42,6 +42,7 @@ func (s *Server) addNetwork(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.pin", Target: secret.Name, Detail: network,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -75,6 +76,7 @@ func (s *Server) removeNetwork(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.unpin", Target: secret.Name, Detail: address,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }

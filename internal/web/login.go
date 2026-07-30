@@ -57,6 +57,9 @@ type pageData struct {
 	// Versions is a secret's history, metadata only.
 	Versions []versionRow
 
+	// Views is who opened this secret, and who was refused it.
+	Views []viewRow
+
 	// Imported is the report of an import: one line per entry read, with what
 	// became of it. Values are deliberately absent.
 	Imported []importRow
@@ -505,6 +508,23 @@ type versionRow struct {
 	CreatedAt time.Time
 	CreatedBy string
 	Current   bool
+}
+
+// viewRow is one opening of a secret, for the list shown on its page.
+//
+// Who, when, from where, and whether they got it. A device is named as a
+// device: "domotique" reading a secret every five minutes is normal, the same
+// name at three in the morning from an address nobody recognises is not, and
+// the page cannot make that distinction for the reader - it can only show it.
+type viewRow struct {
+	At     time.Time
+	Who    string
+	Device bool
+	IP     string
+	// Denied marks an attempt that was refused, with Why saying on what
+	// grounds. A refusal is the line worth reading on this page.
+	Denied bool
+	Why    string
 }
 
 // importRow is one line of an import report: the key as the file wrote it, the

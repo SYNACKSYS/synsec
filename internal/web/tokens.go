@@ -95,6 +95,7 @@ func (s *Server) createToken(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "token.create", Target: vault.Name, Detail: name,
+		ProjectID: vault.ID,
 	})
 	s.renderTokens(w, r, vault, plaintext, http.StatusOK)
 }
@@ -130,6 +131,7 @@ func (s *Server) revokeToken(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "token.revoke", Target: vault.Name, Detail: tok.Name,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -201,6 +203,7 @@ func (s *Server) saveTokenScope(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "token.scope", Target: vault.Name, Detail: detail,
+		ProjectID: vault.ID,
 	})
 	s.redirectWithNotice(w, r, back, "Portée de « "+tok.Name+" » enregistrée.")
 }

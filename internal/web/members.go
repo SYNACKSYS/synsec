@@ -73,7 +73,8 @@ func (s *Server) addMember(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "vault.grant", Target: vault.Name,
-		Detail: target.Username + " → " + role.Label(),
+		ProjectID: vault.ID,
+		Detail:    target.Username + " → " + role.Label(),
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -116,6 +117,7 @@ func (s *Server) removeMember(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "vault.revoke", Target: vault.Name, Detail: targetID,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -191,7 +193,8 @@ func (s *Server) addShare(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.share", Target: secret.Name,
-		Detail: target.Username + " → " + role.Label(),
+		ProjectID: vault.ID,
+		Detail:    target.Username + " → " + role.Label(),
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }
@@ -225,6 +228,7 @@ func (s *Server) removeShare(w http.ResponseWriter, r *http.Request) {
 	s.audit(r, store.AuditEntry{
 		ActorKind: store.ActorUser, ActorID: user.ID, ActorLabel: user.Username,
 		Action: "secret.unshare", Target: secret.Name, Detail: targetID,
+		ProjectID: vault.ID,
 	})
 	http.Redirect(w, r, back, http.StatusSeeOther)
 }

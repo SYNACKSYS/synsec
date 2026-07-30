@@ -93,7 +93,7 @@ func runVaultCreate(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, m.DB(), user, "vault.create", p.Name)
+		auditCLI(ctx, m.DB(), user, p.ID, "vault.create", p.Name)
 		fmt.Printf("Coffre « %s » créé, géré par « %s ».\n", p.Name, user.Username)
 		fmt.Printf("Identifiant : %s\n", p.ID)
 		return nil
@@ -170,7 +170,7 @@ func runVaultDelete(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, m.DB(), user, "vault.delete", p.Name)
+		auditCLI(ctx, m.DB(), user, p.ID, "vault.delete", p.Name)
 		fmt.Printf("Coffre « %s » supprimé, avec %d secret(s) et leurs appareils.\n",
 			p.Name, len(secrets))
 		return nil
@@ -245,7 +245,7 @@ func runVaultRotate(args []string) error {
 			return err
 		}
 
-		auditCLI(ctx, m.DB(), user, "vault.rotate", p.Name)
+		auditCLI(ctx, m.DB(), user, p.ID, "vault.rotate", p.Name)
 		fmt.Printf("Fait : %d secret(s) et tout leur historique sont sous une clé neuve.\n", len(secrets))
 		fmt.Println("Les jetons et les mots de passe ne changent pas ; rien à reconfigurer.")
 		return nil

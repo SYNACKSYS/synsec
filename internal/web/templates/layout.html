@@ -82,8 +82,11 @@
       {{else}}
       <details class="nav-section" {{if eq .Section "coffres"}}open{{end}}>
         <summary>Coffres</summary>
+        {{/* « Nouveau coffre » n'est pas ici : la page des coffres porte déjà
+             son bouton, à l'endroit où l'on regarde justement sa liste. Deux
+             chemins vers la même page encombrent un menu pour un geste qu'on
+             fait trois fois par an. */}}
         <a href="/" {{if eq .Nav "coffres"}}aria-current="page"{{end}}>Mes coffres</a>
-        <a class="nav-action" href="/coffres/nouveau">+ Nouveau coffre</a>
       </details>
 
       <details class="nav-section" {{if eq .Section "parametres"}}open{{end}}>

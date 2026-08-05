@@ -268,12 +268,6 @@ code {
   font-weight: 600;
 }
 
-.nav-action {
-  margin-top: .75rem;
-  color: var(--text-inverse) !important;
-  border: 1px dashed rgb(255 255 255 / 22%) !important;
-  text-align: center !important;
-}
 
 .sidebar-foot {
   padding-top: 1rem;
@@ -877,13 +871,6 @@ input[readonly] {
 
   .nav a { padding-left: 1.5rem; }
 
-  .nav-action {
-    margin: .5rem 0;
-    padding-left: .75rem !important;
-    border: 1px dashed rgb(255 255 255 / 22%) !important;
-    border-radius: var(--radius-sm) !important;
-    justify-content: center;
-  }
 
   .sidebar-foot {
     padding-top: .75rem;
@@ -940,8 +927,6 @@ input[readonly] {
    de 10 rem donnent des titres coupés et des dates repliées. */
 @media (max-width: 30rem) {
   .vault-grid { grid-template-columns: 1fr; }
-
-  .page-head .btn { width: 100%; }
 }
 
 /* The identifier shown under the label a person wrote: present for whoever

@@ -161,7 +161,15 @@ func printToken(p store.Project, tok store.ServiceToken, plaintext string) {
 	fmt.Println()
 	fmt.Println("  Home Assistant (secrets.yaml) :")
 	fmt.Println()
-	fmt.Printf("    synsec_token: \"%s\"\n", plaintext)
+	// "Bearer" is part of the stored value, not of the YAML around it. Home
+	// Assistant's !secret substitutes a whole value and nothing else, so a
+	// token stored bare cannot have the scheme prepended where it is used -
+	// and the API refuses a header without it. Printed the only way that
+	// works when pasted as-is.
+	fmt.Printf("    synsec_token: \"Bearer %s\"\n", plaintext)
+	fmt.Println()
+	fmt.Println("    Le mot « Bearer » fait partie de la valeur : Home Assistant")
+	fmt.Println("    remplace le secret en entier, il ne peut rien ajouter devant.")
 	fmt.Println()
 }
 

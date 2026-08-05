@@ -472,8 +472,12 @@ continue de pointer vers quelque chose qui a un nom.
 Dans `secrets.yaml` :
 
 ```yaml
-synsec_token: "syn_..."
+synsec_token: "Bearer syn_..."
 ```
+
+Le mot **Bearer fait partie de la valeur**. Home Assistant remplace un
+`!secret` en entier et ne peut rien ajouter devant ; sans lui, l'API refuse la
+requête et le capteur reste vide sans dire pourquoi.
 
 Puis un capteur REST qui va chercher la valeur au démarrage :
 
@@ -490,3 +494,11 @@ rest:
 Home Assistant doit faire confiance au certificat de SYNSEC : copie
 `synsec.crt` depuis le dossier de données vers son magasin, ou installe-le au
 niveau du système sur la machine qui l'héberge.
+
+### Le sens inverse : SYNSEC prévient Home Assistant
+
+Ce qui précède, c'est Home Assistant qui vient chercher un secret. SYNSEC sait
+aussi faire l'inverse : envoyer un message à Home Assistant quand quelque chose
+sort de l'ordinaire, un appareil refusé par exemple. Ça se règle dans
+**Paramètres / Alertes** et c'est décrit dans
+[administration.md](administration.md#être-prévenu).

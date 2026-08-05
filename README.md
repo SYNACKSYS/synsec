@@ -22,6 +22,12 @@ MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
   l'administrateur du serveur compris.
 - **Second facteur au choix** : un code à six chiffres, ou une clé FIDO2 -
   YubiKey, SoloKey, Windows Hello, Touch ID. Les deux si tu veux.
+- **Tout est écrit**, les lectures comme les écritures. La page d'un secret
+  montre qui l'a ouvert, avec les refus.
+- **Prévenu quand ça sort de l'ordinaire** : un appareil refusé, un coffre
+  supprimé, un accès donné. SYNSEC envoie un message signé à l'adresse de ton
+  choix - Home Assistant, ntfy, Gotify, un salon Discord. Aucun service tiers,
+  aucun quota.
 - **Démarrage automatique** en service Windows ou unité systemd, sans que
   personne ait à saisir quoi que ce soit après une coupure de courant.
 
@@ -44,7 +50,7 @@ Les quatre commandes sont détaillées dans [l'installation](docs/installation.m
 |---|---|
 | [Installation](docs/installation.md) | Poser SYNSEC sur une machine et le faire démarrer seul |
 | [Utilisation](docs/utilisation.md) | Ranger ses secrets, les partager, connecter un appareil |
-| [Administration](docs/administration.md) | Comptes, sauvegarde, récupération, rotation des clés |
+| [Administration](docs/administration.md) | Comptes, sauvegarde, récupération, alertes, rotation des clés |
 | [L'agent](docs/agent.md) | Injecter les secrets dans un programme, sur Windows, Linux et macOS |
 
 ## Ce que la sécurité couvre, et ce qu'elle ne couvre pas

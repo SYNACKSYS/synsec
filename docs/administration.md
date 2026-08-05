@@ -568,6 +568,59 @@ def valide(cle, entetes, corps):
 Sans cette vérification, n'importe quoi capable d'atteindre ton destinataire
 peut inventer une alerte, ou noyer une vraie sous cent fausses.
 
+### Recevoir dans Home Assistant
+
+Une automatisation déclenchée par webhook. L'identifiant que tu mets dans
+`webhook_id` est la fin de l'adresse à donner à SYNSEC.
+
+```yaml
+automation:
+  - alias: "Alerte SYNSEC"
+    trigger:
+      - platform: webhook
+        webhook_id: synsec_7f3a9c1e4b8d2a6f
+        allowed_methods: [POST]
+        local_only: true
+    action:
+      - service: notify.mobile_app_telephone
+        data:
+          title: "SYNSEC : {{ trigger.json.events[0].severity }}"
+          message: >
+            {{ trigger.json.events[0].summary }}
+            {% if trigger.json.events[0].count > 1 %}
+            ({{ trigger.json.events[0].count }} fois)
+            {% endif %}
+          data:
+            importance: >
+              {{ 'high' if trigger.json.events[0].severity == 'critique' else 'default' }}
+```
+
+Côté SYNSEC :
+
+```
+synsec alertes webhook http://homeassistant.local:8123/api/webhook/synsec_7f3a9c1e4b8d2a6f -user cyril
+synsec alertes test -user cyril
+```
+
+Trois choses à savoir.
+
+**`local_only: true`** limite l'appel au réseau local. À garder : c'est la
+seule vérification que Home Assistant sait faire tout seul.
+
+**La signature ne se vérifie pas en Jinja.** Home Assistant n'a pas de filtre
+HMAC dans ses modèles, donc l'en-tête `X-SYNSEC-Signature` ne peut pas y être
+contrôlé sans passer par pyscript ou AppDaemon. Dans cette configuration, c'est
+l'identifiant du webhook qui fait office de secret : prends-en un long et
+aléatoire, comme ci-dessus, et ne le mets pas dans une capture d'écran.
+
+**En `http://` sur le réseau local**, ça marche tel quel. Si ton Home Assistant
+est en `https://` avec un certificat auto-signé, l'envoi échoue avec « destinataire
+injoignable » : SYNSEC vérifie les certificats et n'a pas d'exception à offrir.
+
+Un message porte plusieurs événements quand plusieurs choses arrivent en même
+temps. L'exemple ci-dessus n'affiche que le premier ; pour tous les traiter,
+boucle sur `trigger.json.events` avec `repeat`.
+
 ### Ce qui empêche l'inondation
 
 C'est la partie qui décide si le système est utilisable. Un balayage

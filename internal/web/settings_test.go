@@ -75,8 +75,10 @@ func TestThePaletteAppliesToEveryPage(t *testing.T) {
 	h := newHarness(t)
 	h.signIn(t)
 
-	if page := body(t, h.get(t, "/")); strings.Contains(page, "theme-") {
-		t.Fatal("a palette is applied before anything was chosen")
+	// Looked for on the html element rather than anywhere in the page: the
+	// head carries a theme-color meta, and "theme-" alone would match it.
+	if tag := htmlTag(t, body(t, h.get(t, "/"))); strings.Contains(tag, "theme-") {
+		t.Fatalf("a palette is applied before anything was chosen: %s", tag)
 	}
 
 	resp := h.post(t, "/parametres/apparence", url.Values{
@@ -98,8 +100,8 @@ func TestThePaletteAppliesToEveryPage(t *testing.T) {
 	h.post(t, "/parametres/apparence", url.Values{
 		"csrf": {h.csrf(t)}, "scale": {"80"}, "theme": {"ardoise"},
 	})
-	if page := body(t, h.get(t, "/")); strings.Contains(page, "theme-") {
-		t.Fatal("the default palette is written into the page")
+	if tag := htmlTag(t, body(t, h.get(t, "/"))); strings.Contains(tag, "theme-") {
+		t.Fatalf("the default palette is written into the page: %s", tag)
 	}
 }
 
@@ -197,4 +199,19 @@ func TestVeilleuseStaysDark(t *testing.T) {
 	if strings.Count(block[start:], "prefers-color-scheme") != 0 {
 		t.Error("Veilleuse depends on the system colour scheme")
 	}
+}
+
+// htmlTag returns the opening <html> element, which is where the display size
+// and the palette ride.
+func htmlTag(t *testing.T, page string) string {
+	t.Helper()
+	start := strings.Index(page, "<html")
+	if start < 0 {
+		t.Fatal("la page n'a pas d'élément html")
+	}
+	end := strings.Index(page[start:], ">")
+	if end < 0 {
+		t.Fatal("élément html non terminé")
+	}
+	return page[start : start+end+1]
 }

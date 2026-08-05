@@ -112,6 +112,14 @@ type Server struct {
 
 	throttle *throttle
 
+	// icons are the home-screen marks, drawn once at start-up.
+	icons map[int][]byte
+
+	// assets is the fingerprint of the embedded style sheet and scripts, put
+	// in their addresses so an upgrade is picked up instead of being masked
+	// by a browser's cache.
+	assets string
+
 	// alerts is the watcher following the journal, when one runs. The
 	// interface neither starts it nor feeds it: it reads its state to say
 	// whether the last message got through, and asks it for a test. Nil in
@@ -219,6 +227,18 @@ func New(v *vault.Manager, opts ...Option) (*Server, error) {
 		s.requireStored.Store(stored == "1")
 	}
 
+	icons, err := drawIcons()
+	if err != nil {
+		return nil, err
+	}
+	s.icons = icons
+
+	tag, err := assetTag()
+	if err != nil {
+		return nil, fmt.Errorf("web: fingerprinting the assets: %w", err)
+	}
+	s.assets = tag
+
 	pages, err := parsePages()
 	if err != nil {
 		return nil, err
@@ -265,6 +285,14 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
 	mux.Handle("GET /static/", s.staticHandler())
+
+	// L'icône et le manifeste, publics comme la page de connexion : un écran
+	// d'accueil les demande avant que qui que ce soit se soit connecté.
+	mux.HandleFunc("GET /icone.svg", s.serveIconSVG)
+	mux.HandleFunc("GET /icone-180.png", s.serveIcon(180))
+	mux.HandleFunc("GET /icone-192.png", s.serveIcon(192))
+	mux.HandleFunc("GET /icone-512.png", s.serveIcon(512))
+	mux.HandleFunc("GET /manifest.webmanifest", s.serveManifest)
 
 	// Unauthenticated, like the sign-in page: the licence notice is owed to
 	// anyone the server talks to, not only to those with an account.
@@ -377,6 +405,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 	// from the default is carried: the sign-in page has no account to read a
 	// preference from, and someone who never chose anything gets the plain
 	// stylesheet rather than a class that resolves to the same thing.
+	if d, ok := data.(pageData); ok {
+		d.Assets = s.assets
+		data = d
+	}
 	if d, ok := data.(pageData); ok && d.User != nil {
 		if scale := scaleFrom(r); d.Scale == 0 && scale != defaultScale {
 			d.Scale = scale
@@ -387,6 +419,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, sta
 		if theme := themeFrom(r); theme != defaultTheme {
 			d.Theme = theme
 		}
+		d.Section = navSection(d.Nav)
 		d.CanReadAudit = canReadAuditFrom(r)
 		d.RequireFactor = s.requiresFactor()
 		d.PolicyPinned = s.requirePin != nil

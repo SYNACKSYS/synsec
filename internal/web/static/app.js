@@ -321,3 +321,58 @@ document.addEventListener("click", function (event) {
   }
   target.focus();
 });
+
+// Le menu, replié sur un écran étroit.
+//
+// Il est ouvert dans le document, et refermé ici. Dans cet ordre parce que
+// l'inverse rendrait le menu inatteignable à qui n'exécute pas de script : le
+// navigateur ne saurait pas l'ouvrir. Sans script, il reste simplement
+// déplié, ce qui est laid mais utilisable ; avec, on gagne le tiroir.
+//
+// Exécuté tout de suite plutôt qu'à DOMContentLoaded : le script est chargé
+// en « defer », donc le document est là, et attendre un événement de plus
+// ferait apparaître le tiroir puis le ferait disparaître sous les yeux.
+(function () {
+  var menu = document.querySelector(".menu");
+  if (!menu) {
+    return;
+  }
+
+  var narrow = window.matchMedia("(max-width: 820px)");
+
+  // Suivi, pas seulement lu au chargement : sur un grand écran le bouton qui
+  // rouvre le menu est caché, donc une fenêtre agrandie après un repli
+  // laisserait une colonne vide et aucun moyen d'en sortir.
+  var apply = function () {
+    menu.open = !narrow.matches;
+  };
+  apply();
+  if (narrow.addEventListener) {
+    narrow.addEventListener("change", apply);
+  }
+
+  // Suivre un lien referme le tiroir : il couvre la page, et le retour
+  // arrière du navigateur le rouvrirait sinon par-dessus la page précédente.
+  menu.addEventListener("click", function (event) {
+    if (narrow.matches && event.target.closest("a")) {
+      menu.open = false;
+    }
+  });
+
+  // Toucher à côté referme, parce que c'est ce que tout le monde essaie en
+  // premier. Le voile est dessiné par la feuille de style ; c'est le clic
+  // n'importe où hors du menu qui compte, ce qui couvre aussi le voile.
+  document.addEventListener("click", function (event) {
+    if (menu.open && narrow.matches && !event.target.closest(".menu")) {
+      menu.open = false;
+    }
+  });
+
+  // Échap referme aussi : gratuit au clavier, et c'est ce qu'un navigateur
+  // fait déjà pour ses propres menus.
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && menu.open && narrow.matches) {
+      menu.open = false;
+    }
+  });
+})();

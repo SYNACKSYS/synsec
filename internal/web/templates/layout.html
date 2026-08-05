@@ -7,10 +7,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{if .Title}}{{.Title}} - SYNSEC{{else}}SYNSEC{{end}}</title>
-  <link rel="stylesheet" href="/static/style.css">
-  <link rel="icon" href="data:,">
-  <script src="/static/app.js" defer></script>
-  <script src="/static/webauthn.js" defer></script>
+  <link rel="stylesheet" href="/static/style.css?v={{.Assets}}">
+
+  {{/* Posée sur l'écran d'accueil d'un téléphone, l'adresse devient une
+       application : une icône, un nom, et une fenêtre sans barre d'adresse.
+       C'est ce manifeste qui fait la différence entre un signet et une app. */}}
+  <link rel="icon" href="/icone.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icone-180.png">
+  <link rel="manifest" href="/manifest.webmanifest">
+
+  {{/* La barre d'état du téléphone prend la couleur de la barre de SYNSEC,
+       au lieu de laisser une bande d'une autre couleur en haut. Deux
+       déclarations, parce que la barre n'a pas la même teinte selon le
+       thème. */}}
+  <meta name="theme-color" content="#16181d" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0a0c0f" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="SYNSEC">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="/static/app.js?v={{.Assets}}" defer></script>
+  <script src="/static/webauthn.js?v={{.Assets}}" defer></script>
 </head>
 <body>
 
@@ -27,37 +43,71 @@
     </form>
     {{end}}
 
+    {{/* Le menu, replié derrière un bouton sur un téléphone et déplié en
+         permanence sur un écran large.
+
+         Ouvert dans le document, et refermé par le script quand l'écran est
+         étroit. Dans cet ordre, parce que l'inverse laisserait un menu
+         inatteignable à qui n'exécute pas de script : ici, sans script, il
+         est simplement toujours ouvert. */}}
+    <details class="menu" open>
+      <summary class="menu-toggle" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" aria-hidden="true">
+          <path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>
+        </svg>
+        <span class="menu-toggle-text">Menu</span>
+      </summary>
+
+      <div class="menu-panel">
+
+    {{/* Des sections qu'on déplie, identiques sur un téléphone et sur un
+         écran. Un <details> plutôt qu'un script : le navigateur sait le faire
+         seul, ça marche sans JavaScript, et la politique de sécurité que ce
+         serveur envoie interdit de toute façon le code dans la page.
+
+         Celle qui contient la page ouverte est dépliée, les autres sont
+         repliées. Décidé ici, où l'on sait quelle page est affichée, plutôt
+         que par un script qui devrait le deviner après coup. */}}
     <nav class="nav">
       {{if .MustEnrol}}
       {{/* Nothing else is reachable until a second factor exists, so nothing
            else is offered: a sidebar full of links that all lead back here
            reads as a broken interface rather than as a requirement. */}}
-      <span class="nav-label">À faire</span>
-      <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Application d'authentification</a>
-      <a href="/parametres/cles" {{if eq .Nav "cles"}}aria-current="page"{{end}}>Clé de sécurité</a>
+      <details class="nav-section" open>
+        <summary>À faire</summary>
+        <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Application d'authentification</a>
+        <a href="/parametres/cles" {{if eq .Nav "cles"}}aria-current="page"{{end}}>Clé de sécurité</a>
+      </details>
       {{else}}
-      <span class="nav-label">Coffres</span>
-      <a href="/" {{if eq .Nav "coffres"}}aria-current="page"{{end}}>Mes coffres</a>
-      <a class="nav-action" href="/coffres/nouveau">+ Nouveau coffre</a>
+      <details class="nav-section" {{if eq .Section "coffres"}}open{{end}}>
+        <summary>Coffres</summary>
+        <a href="/" {{if eq .Nav "coffres"}}aria-current="page"{{end}}>Mes coffres</a>
+        <a class="nav-action" href="/coffres/nouveau">+ Nouveau coffre</a>
+      </details>
 
-      <span class="nav-label nav-label-spaced">Paramètres</span>
-      <a href="/parametres" {{if eq .Nav "parametres"}}aria-current="page"{{end}}>Apparence</a>
-      <a href="/parametres/motdepasse" {{if eq .Nav "motdepasse"}}aria-current="page"{{end}}>Mot de passe</a>
-      <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Vérification en deux étapes</a>
-      <a href="/parametres/cles" {{if eq .Nav "cles"}}aria-current="page"{{end}}>Clé de sécurité</a>
+      <details class="nav-section" {{if eq .Section "parametres"}}open{{end}}>
+        <summary>Paramètres</summary>
+        <a href="/parametres" {{if eq .Nav "parametres"}}aria-current="page"{{end}}>Apparence</a>
+        <a href="/parametres/motdepasse" {{if eq .Nav "motdepasse"}}aria-current="page"{{end}}>Mot de passe</a>
+        <a href="/parametres/verification" {{if eq .Nav "deuxfacteurs"}}aria-current="page"{{end}}>Vérification en deux étapes</a>
+        <a href="/parametres/cles" {{if eq .Nav "cles"}}aria-current="page"{{end}}>Clé de sécurité</a>
+      </details>
 
       {{if or .User.IsAdmin .CanReadAudit}}
-      <span class="nav-label nav-label-spaced">Administration</span>
-      {{if .User.IsAdmin}}
-      <a href="/comptes" {{if eq .Nav "comptes"}}aria-current="page"{{end}}>Comptes</a>
-      {{end}}
-      {{if .User.IsRoot}}
-      <a href="/parametres/serveur" {{if eq .Nav "serveur"}}aria-current="page"{{end}}>Sécurité du serveur</a>
-      <a href="/parametres/alertes" {{if eq .Nav "alertes"}}aria-current="page"{{end}}>Alertes</a>
-      {{end}}
-      {{if .CanReadAudit}}
-      <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>
-      {{end}}
+      <details class="nav-section" {{if eq .Section "administration"}}open{{end}}>
+        <summary>Administration</summary>
+        {{if .User.IsAdmin}}
+        <a href="/comptes" {{if eq .Nav "comptes"}}aria-current="page"{{end}}>Comptes</a>
+        {{end}}
+        {{if .User.IsRoot}}
+        <a href="/parametres/serveur" {{if eq .Nav "serveur"}}aria-current="page"{{end}}>Sécurité du serveur</a>
+        <a href="/parametres/alertes" {{if eq .Nav "alertes"}}aria-current="page"{{end}}>Alertes</a>
+        {{end}}
+        {{if .CanReadAudit}}
+        <a href="/journal" {{if eq .Nav "journal"}}aria-current="page"{{end}}>Journal</a>
+        {{end}}
+      </details>
       {{end}}
       {{end}}
     </nav>
@@ -94,6 +144,8 @@
         </form>
       </div>
     </div>
+      </div>
+    </details>
   </aside>
 
   <main class="content">

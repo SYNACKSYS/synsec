@@ -17,13 +17,15 @@ import (
 // pageData is what every template receives.
 type pageData struct {
 	Title string
-	// Nav marks the sidebar entry to highlight.
-	Nav    string
-	User   *store.User
-	CSRF   string
-	Error  string
-	Notice string
-	Sealed bool
+	// Nav marks the sidebar entry to highlight, and Section the group of the
+	// menu that is unfolded around it.
+	Nav     string
+	Section string
+	User    *store.User
+	CSRF    string
+	Error   string
+	Notice  string
+	Sealed  bool
 
 	Vaults []vaultRow
 	// SharedVaults are those someone else opened, kept apart from the ones
@@ -128,6 +130,10 @@ type pageData struct {
 	// PolicyPinned says the command line settled the question, so the page
 	// shows the state instead of offering it.
 	PolicyPinned bool
+
+	// Assets fingerprints the style sheet and the scripts, so a browser that
+	// cached them fetches the new ones after an upgrade.
+	Assets string
 
 	// SourceURL and Version answer the licence notice: which build this is,
 	// and where its source can be fetched.

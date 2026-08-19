@@ -80,6 +80,12 @@ Si tu as besoin qu'un administrateur système ne puisse pas lire tes secrets, il
 faut un déverrouillage par phrase de passe saisie à chaque démarrage - et donc
 renoncer au redémarrage automatique.
 
+**En résumé : le niveau de sécurité de SYNSEC est celui de la machine qui
+l'héberge.** Il n'y a pas de magie. Chiffrer déplace le problème vers la clé,
+et cette clé est gardée par le système d'exploitation. Un TPM, un volume
+chiffré et un compte de service dédié ne sont pas du confort : c'est le sol
+sur lequel tout le reste tient.
+
 ## Construire
 
 ```

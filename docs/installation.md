@@ -103,6 +103,14 @@ Linux à TPM, la clé ne quitte jamais la puce, et le disque seul ne suffit pas.
 Sans TPM ni BitLocker, SYNSEC le dit franchement à l'installation : la clé dort
 à côté de la base.
 
+> **Le niveau de sécurité de SYNSEC est celui de la machine qui l'héberge.**
+> Il n'y a pas de magie : chiffrer déplace le problème vers la clé, et cette
+> clé est gardée par le système d'exploitation, pas par SYNSEC. Un serveur de
+> secrets posé sur une machine ouverte à tous les vents est un serveur de
+> secrets ouvert à tous les vents. Le TPM, BitLocker et un compte de service
+> dédié ne sont pas des options de confort : ce sont les fondations sur
+> lesquelles tout le reste s'appuie.
+
 ### Où vont les données
 
 | Plateforme | Dossier |

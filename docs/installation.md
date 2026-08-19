@@ -84,14 +84,24 @@ affiche un **code de récupération**.
 
 La commande indique aussi comment la clé est protégée sur ta machine :
 
-| Plateforme | Protection | Disque volé |
-|---|---|---|
-| Windows | DPAPI, lié à la machine | inexploitable |
-| Linux avec TPM | scellée dans la puce TPM | inexploitable |
-| Linux sans TPM | fichier réservé au service | **exploitable** |
+| Plateforme | Protection | Sauvegarde emportée | Disque entier volé |
+|---|---|---|---|
+| Windows | DPAPI, lié à la machine | inexploitable | **exploitable sans BitLocker** |
+| Linux avec TPM | scellée dans la puce TPM | inexploitable | inexploitable |
+| Linux sans TPM | fichier réservé au service | **exploitable** | **exploitable** |
 
-Dans le dernier cas, SYNSEC te le dit franchement : la clé dort à côté de la
-base. Chiffre le disque si la machine est exposée.
+Les deux colonnes ne disent pas la même chose, et la différence compte.
+
+Une **sauvegarde du dossier de données** restaurée ailleurs est inexploitable
+sur Windows comme sur un Linux à TPM : ce qui ouvre la clé n'y figure pas.
+
+Un **disque entier** est un autre sujet. Sous Windows, ce qui déchiffre la clé
+DPAPI vit ailleurs sur ce même disque : qui repart avec le disque repart avec
+les deux moitiés. C'est **BitLocker** qui ferme cet écart, pas SYNSEC. Sur un
+Linux à TPM, la clé ne quitte jamais la puce, et le disque seul ne suffit pas.
+
+Sans TPM ni BitLocker, SYNSEC le dit franchement à l'installation : la clé dort
+à côté de la base.
 
 ### Où vont les données
 

@@ -24,3 +24,7 @@ Thumbs.db
 
 # Archive de travail deposee a la racine, hors du depot.
 /SYNSEC.zip
+
+# Le jeton de demonstration, pose a la main et jamais partage.
+/demo/jeton.txt
+/demo/config.cmd

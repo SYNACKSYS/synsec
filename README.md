@@ -59,9 +59,14 @@ Les quatre commandes sont détaillées dans [l'installation](docs/installation.m
 
 **Couvert.** Les valeurs sont chiffrées en XChaCha20-Poly1305 sous une clé par
 coffre, elle-même scellée par une clé racine que le système d'exploitation
-protège. Un disque volé, une sauvegarde égarée ou un dump de la base sont
-inexploitables. Chaque lecture et chaque écriture laissent une trace nominative
-dans le journal d'audit.
+protège. Une sauvegarde égarée ou un dump de la base sont inexploitables :
+ce qui ouvre la clé n'est pas dedans. Chaque lecture et chaque écriture
+laissent une trace nominative dans le journal d'audit.
+
+Le **vol du disque entier** demande une précision. Sur un Linux à TPM, la clé
+ne quitte jamais la puce et le disque seul ne sert à rien. Sur Windows, ce qui
+déchiffre la clé DPAPI se trouve sur ce même disque : il faut chiffrer le
+volume, avec BitLocker, pour que la promesse tienne.
 
 **Non couvert.** La clé racine est déscellée automatiquement au démarrage -
 c'est ce qui permet à ta box domotique de redémarrer à trois heures du matin

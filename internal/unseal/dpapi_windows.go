@@ -78,15 +78,34 @@ func (b *dataBlob) free() {
 
 // DPAPI protects the wrapping key with the Windows Data Protection API, tied
 // to the machine.
+//
+// Ce que ça vaut exactement, parce que la nuance décide de ce qu'on a le droit
+// d'annoncer : le secret ne s'ouvre que sur ce système, avec ce compte de
+// service. Mais la clé maître qui le déchiffre vit sous System32\Microsoft// Protect, et le secret LSA qui l'ouvre à son tour est dans la ruche SECURITY
+// - sur le même disque. Qui emporte le disque emporte les deux moitiés, et
+// l'extraction hors ligne est un exercice documenté.
+//
+// Donc : une sauvegarde du dossier de données reste inexploitable ailleurs,
+// puisque rien de tout ça n'y figure. Un disque entier, lui, ne l'est que si
+// le volume est chiffré. C'est BitLocker qui apporte cette moitié-là, pas
+// SYNSEC, et le texte affiché à l'installation le dit.
+//
+// Un fournisseur adossé au TPM - CNG, Microsoft Platform Crypto Provider -
+// fermerait l'écart sans BitLocker. Il n'est pas écrit : ce serait quelques
+// centaines de lignes sur le chemin le plus sensible du projet, dont on ne
+// peut pas simuler l'absence de puce en test.
 type DPAPI struct{}
 
 func (DPAPI) Name() string { return "dpapi" }
 
 func (DPAPI) Protection() Protection {
 	return Protection{
-		ResistsDiskTheft: true,
-		Summary:          "La clé est protégée par Windows et liée à cette machine. Un disque volé, ou une sauvegarde emportée ailleurs, est inexploitable.",
-		Caveat:           "Sur cette machine, un compte administrateur peut déchiffrer la clé : c'est ce qui permet au service de démarrer tout seul. Et si Windows est réinstallé, seul le code de récupération imprimé rouvrira le coffre.",
+		// Faux tant que le volume n'est pas chiffré : ce qui déchiffre la clé
+		// est sur le même disque. L'assistant d'installation affiche donc un
+		// avertissement plutôt qu'une simple note, et c'est voulu.
+		ResistsDiskTheft: false,
+		Summary:          "La clé est protégée par Windows (DPAPI) et liée à cette machine : elle ne s'ouvre que sur ce système, avec ce compte de service. Une sauvegarde du dossier de données, restaurée ailleurs, reste inexploitable.",
+		Caveat:           "Un disque entier emporté, lui, reste déchiffrable : ce qui ouvre la clé se trouve dessus. Active BitLocker sur ce volume si la machine est accessible physiquement. À savoir aussi : un compte administrateur de cette machine peut obtenir la clé - c'est ce qui permet au service de démarrer tout seul - et si Windows est réinstallé, seul le code de récupération imprimé rouvrira le coffre.",
 	}
 }
 

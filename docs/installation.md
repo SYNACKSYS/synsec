@@ -216,6 +216,54 @@ tourne mais n'a pas réussi à ouvrir son coffre - voir
 refais l'appel depuis un autre poste. C'est le scénario réel, celui de la
 coupure de courant à trois heures du matin.
 
+## 7. Chiffrer le disque
+
+Cette étape ne fait pas partie de SYNSEC, et c'est exactement pour ça qu'elle
+mérite d'être écrite : sans elle, la protection de la clé s'arrête à mi-chemin
+sur Windows.
+
+### Windows
+
+Vérifier l'état actuel, dans une invite de commandes en administrateur :
+
+```
+manage-bde -status C:
+```
+
+Si la protection est désactivée, l'activer :
+
+```
+manage-bde -on C: -RecoveryPassword
+```
+
+La commande affiche une **clé de récupération BitLocker de 48 chiffres**.
+Range-la comme le code de récupération de SYNSEC : ailleurs que sur cette
+machine, et pas au même endroit que la sauvegarde. Ce sont deux secrets
+différents qui répondent à deux pannes différentes.
+
+Sans TPM, Windows refuse par défaut et demande une clé de démarrage sur clé
+USB. Sur une machine domestique laissée allumée, c'est souvent le moment de se
+demander si le TPM ne peut pas être activé dans le firmware.
+
+### Linux
+
+Le chiffrement du volume se met en place à l'installation du système, avec
+LUKS. Sur une machine déjà en service, c'est une réinstallation.
+
+Avec un TPM, l'urgence est moindre : la clé racine de SYNSEC est scellée dans
+la puce et ne se trouve pas sur le disque. Sans TPM, la clé dort dans
+`root.key` à côté de la base, et LUKS est la seule chose qui rattrape ça.
+
+### Ce que ça change, et ce que ça ne change pas
+
+Le chiffrement du volume protège la machine **éteinte** : disque retiré, poste
+volé, serveur mis au rebut sans effacement.
+
+Il ne protège pas une machine allumée. Un administrateur du système en marche
+obtient la clé de la même façon que le service, et c'est le compromis assumé
+qui permet à SYNSEC de redémarrer seul après une coupure. Voir
+[le modèle de menace](../README.md#ce-que-la-sécurité-couvre-et-ce-quelle-ne-couvre-pas).
+
 ## Sans service, au premier plan
 
 Pour un essai ou un diagnostic :

@@ -66,7 +66,9 @@ laissent une trace nominative dans le journal d'audit.
 Le **vol du disque entier** demande une précision. Sur un Linux à TPM, la clé
 ne quitte jamais la puce et le disque seul ne sert à rien. Sur Windows, ce qui
 déchiffre la clé DPAPI se trouve sur ce même disque : il faut chiffrer le
-volume, avec BitLocker, pour que la promesse tienne.
+volume, avec BitLocker, pour que la promesse tienne. Les commandes sont dans
+[l'installation](docs/installation.md#7-chiffrer-le-disque), et c'est une
+étape à faire, pas une option.
 
 **Non couvert.** La clé racine est déscellée automatiquement au démarrage -
 c'est ce qui permet à ta box domotique de redémarrer à trois heures du matin

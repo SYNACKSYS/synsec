@@ -42,14 +42,22 @@ func runMaintenanceReseal(args []string) error {
 		meilleur := m.BestProvider()
 
 		fmt.Println()
-		fmt.Printf("  Protection actuelle : %s\n", actuel)
-		fmt.Printf("  Meilleure ici       : %s\n", meilleur.Name())
+		fmt.Printf("  Protection actuelle : %s\n", providerLabel(actuel))
+		fmt.Printf("  Meilleure ici       : %s\n", providerLabel(meilleur.Name()))
 		fmt.Println()
 
 		if actuel == meilleur.Name() {
 			fmt.Println("  Rien à faire : cette machine n'offre pas mieux.")
 			fmt.Println()
 			return nil
+		}
+
+		// Refusé avant de toucher à quoi que ce soit. Sans les droits, la
+		// création de la clé échouerait, le repli ramènerait la protection
+		// actuelle, et la commande annoncerait un changement qui n'a pas eu
+		// lieu - le pire des trois résultats possibles.
+		if hint := elevationHint(); hint != "" {
+			return errors.New(hint)
 		}
 
 		// L'identité est demandée parce que le geste déplace la garde de la
@@ -85,7 +93,7 @@ func runMaintenanceReseal(args []string) error {
 
 		auditCLI(ctx, m.DB(), user, "", "vault.reseal", actuel+" -> "+provider.Name())
 
-		fmt.Printf("  Clé re-scellée : %s\n", provider.Name())
+		fmt.Printf("  Clé re-scellée : %s\n", providerLabel(provider.Name()))
 		fmt.Printf("  %s\n", wrap(provider.Protection().Summary, 66, "  "))
 		if c := provider.Protection().Caveat; c != "" {
 			fmt.Println()

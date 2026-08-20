@@ -56,7 +56,42 @@ Options :
 	defer manager.Seal()
 
 	printRecoveryKit(cfg, res)
+	warnIfWeakerThanPossible(manager, res.Provider)
 	return nil
+}
+
+// warnIfWeakerThanPossible dit tout haut qu'on a obtenu moins que ce que cette
+// machine offre.
+//
+// Le repli existe pour que l'installation aboutisse quoi qu'il arrive, et
+// c'est bien. Ce qui ne va pas, c'est qu'il aboutisse sans que personne ne
+// sache qu'une meilleure protection était à portée : une invite élevée, un
+// interrupteur dans le firmware. Le silence ici coûte la seule garantie qui
+// survit au vol du disque.
+func warnIfWeakerThanPossible(m *vault.Manager, obtenu string) {
+	meilleur := m.BestProvider()
+	if meilleur.Name() == obtenu {
+		return
+	}
+
+	line := strings.Repeat("=", 66)
+	fmt.Println(line)
+	fmt.Println()
+	fmt.Println("  ATTENTION : protection plus faible que possible")
+	fmt.Println()
+	fmt.Printf("  Obtenue     : %s\n", providerLabel(obtenu))
+	fmt.Printf("  Disponible  : %s\n", providerLabel(meilleur.Name()))
+	fmt.Println()
+	if hint := elevationHint(); hint != "" {
+		fmt.Printf("  %s\n", wrap(hint, 64, "  "))
+		fmt.Println()
+	}
+	fmt.Println("  Une fois le problème réglé, sans tout réinstaller :")
+	fmt.Println()
+	fmt.Println("    synsec maintenance sceller -user <nom>")
+	fmt.Println()
+	fmt.Println(line)
+	fmt.Println()
 }
 
 // printRecoveryKit is the one moment the recovery code is ever shown.

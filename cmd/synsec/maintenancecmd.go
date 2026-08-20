@@ -19,6 +19,8 @@ func runMaintenance(args []string) error {
 	switch args[0] {
 	case "nettoyer", "vacuum":
 		return runMaintenanceVacuum(args[1:])
+	case "sceller", "reseal":
+		return runMaintenanceReseal(args[1:])
 	case "-h", "--help", "help":
 		return usageMaintenance()
 	default:
@@ -31,8 +33,14 @@ func usageMaintenance() error {
 synsec maintenance - entretien de la base
 
   synsec maintenance nettoyer
+  synsec maintenance sceller
 
-Réécrit la base pour effacer les pages libérées par les suppressions
+« sceller » remet la clé racine sous la meilleure protection que cette machine
+sache offrir aujourd'hui. Utile après avoir activé le TPM dans le firmware :
+une installation garde la protection choisie le jour de sa mise en place, et
+ne change jamais toute seule.
+
+« nettoyer » réécrit la base pour effacer les pages libérées par les suppressions
 antérieures, et vérifie son intégrité au passage.
 
 Depuis la version qui a introduit cette commande, une suppression écrase déjà

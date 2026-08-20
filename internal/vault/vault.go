@@ -136,8 +136,8 @@ func (m *Manager) Initialize(ctx context.Context) (InitResult, error) {
 	}, nil
 }
 
-// provisionMachineSlot seals the root key to this host, falling back to a key
-// file if the preferred keystore refuses.
+// provisionMachineSlot seals the root key to this host, falling back to the
+// platform's second choice if the preferred keystore refuses.
 //
 // A failure here would otherwise abort setup entirely and leave a
 // non-technical owner with an error message about DPAPI, so the fallback keeps
@@ -147,7 +147,7 @@ func (m *Manager) provisionMachineSlot(ctx context.Context, root *crypto.Key) (u
 	preferred := unseal.Detect(m.dir)
 	err := m.storeMachineSlot(ctx, preferred, root)
 	if err == nil {
-		return preferred, nil
+		return preferred, m.db.SetMeta(ctx, metaUnsealProvider, []byte(preferred.Name()))
 	}
 
 	fallback := unseal.Fallback(m.dir)
@@ -158,8 +158,25 @@ func (m *Manager) provisionMachineSlot(ctx context.Context, root *crypto.Key) (u
 		return nil, fmt.Errorf("vault: sealing to %s failed (%v) and to %s: %w",
 			preferred.Name(), err, fallback.Name(), err2)
 	}
-	return fallback, nil
+	return fallback, m.db.SetMeta(ctx, metaUnsealProvider, []byte(fallback.Name()))
 }
+
+// CurrentProvider says what is protecting the key right now.
+//
+// Read from the slot rather than from the meta: the slot is what Unseal
+// actually consults, so it is the only answer that cannot be stale.
+func (m *Manager) CurrentProvider(ctx context.Context) (string, error) {
+	rec, err := m.db.KeySlotByKind(ctx, crypto.SlotMachine)
+	if err != nil {
+		return "", err
+	}
+	return rec.Provider, nil
+}
+
+// BestProvider is what this host could use today, which is not necessarily
+// what it uses: a machine that gained a TPM since its installation keeps the
+// protection it was set up with until somebody asks for the change.
+func (m *Manager) BestProvider() unseal.Provider { return unseal.Detect(m.dir) }
 
 func (m *Manager) storeMachineSlot(ctx context.Context, provider unseal.Provider, root *crypto.Key) error {
 	wrapping, err := crypto.NewRandomKey()

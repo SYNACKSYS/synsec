@@ -753,6 +753,7 @@ synsec coffre create|list|supprimer|partager|membres|retirer|rotation
 synsec secret set|get|list|rm|partager|partages|retirer|reseau
 synsec token create|list|portee|revoke
 synsec maintenance nettoyer      compacte la base, efface les pages libérées
+synsec maintenance sceller       remet la clé sous la meilleure protection
 synsec alertes                   webhook|niveau|activer|desactiver|test
 ```
 

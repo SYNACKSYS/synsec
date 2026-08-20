@@ -86,8 +86,9 @@ La commande indique aussi comment la clé est protégée sur ta machine :
 
 | Plateforme | Protection | Sauvegarde emportée | Disque entier volé |
 |---|---|---|---|
-| Windows | DPAPI, lié à la machine | inexploitable | **exploitable sans BitLocker** |
-| Linux avec TPM | scellée dans la puce TPM | inexploitable | inexploitable |
+| Windows avec TPM | scellée dans la puce | inexploitable | inexploitable |
+| Windows sans TPM | DPAPI, lié à la machine | inexploitable | **exploitable sans BitLocker** |
+| Linux avec TPM | scellée dans la puce | inexploitable | inexploitable |
 | Linux sans TPM | fichier réservé au service | **exploitable** | **exploitable** |
 
 Les deux colonnes ne disent pas la même chose, et la différence compte.
@@ -230,7 +231,33 @@ Cette étape ne fait pas partie de SYNSEC, et c'est exactement pour ça qu'elle
 mérite d'être écrite : sans elle, la protection de la clé s'arrête à mi-chemin
 sur Windows.
 
-### Windows
+### Windows : d'abord chercher le TPM
+
+Avant BitLocker, vérifie si cette machine a une puce :
+
+```
+Get-Tpm
+```
+
+`TpmPresent: False` ne veut pas dire « pas de puce ». Sur la plupart des cartes
+récentes, le TPM est intégré au processeur et **désactivé par défaut dans le
+firmware** : cherche **fTPM** chez AMD, **PTT** chez Intel. Une case à cocher
+dans le BIOS, et SYNSEC passe de DPAPI au scellement matériel.
+
+Après l'avoir activé, dis-le à SYNSEC : une installation ne rediscute jamais
+sa protection toute seule.
+
+```
+synsec maintenance sceller -user cyril
+```
+
+La commande annonce ce qu'elle va faire, re-scelle la clé, puis **referme et
+rouvre le coffre pour vérifier** avant de te rendre la main. Le code de
+récupération imprimé à l'installation reste valable.
+
+Si le TPM n'existe vraiment pas, alors BitLocker.
+
+### Windows sans TPM : BitLocker
 
 Vérifier l'état actuel, dans une invite de commandes en administrateur :
 
@@ -249,9 +276,11 @@ Range-la comme le code de récupération de SYNSEC : ailleurs que sur cette
 machine, et pas au même endroit que la sauvegarde. Ce sont deux secrets
 différents qui répondent à deux pannes différentes.
 
-Sans TPM, Windows refuse par défaut et demande une clé de démarrage sur clé
-USB. Sur une machine domestique laissée allumée, c'est souvent le moment de se
-demander si le TPM ne peut pas être activé dans le firmware.
+Sans TPM, Windows refuse par défaut : il faut passer par une stratégie de
+groupe, et le seul démarrage sans intervention devient une clé USB laissée en
+permanence dans la machine. Elle protège le disque sorti du boîtier, pas le
+boîtier emporté avec la clé dedans. C'est pourquoi la question du TPM se pose
+avant celle de BitLocker.
 
 ### Linux
 

@@ -251,9 +251,25 @@ sa protection toute seule.
 synsec maintenance sceller -user cyril
 ```
 
-La commande annonce ce qu'elle va faire, re-scelle la clé, puis **referme et
-rouvre le coffre pour vérifier** avant de te rendre la main. Le code de
-récupération imprimé à l'installation reste valable.
+La commande annonce ce qu'elle va faire, re-scelle la clé, puis referme et
+rouvre le coffre pour vérifier avant de te rendre la main.
+
+**Puis redémarre le service, tout de suite.** La vérification de la commande
+prouve que *ton* compte rouvre le coffre ; le service, lui, tourne en
+LocalSystem, et c'est son démarrage qui est le vrai test. La clé TPM lui est
+donnée explicitement à la création, mais ça se constate plutôt que ça ne se
+promet :
+
+```
+net stop SYNSEC
+net start SYNSEC
+curl https://localhost:8787/api/v1/health
+```
+
+`{"status":"ready"}` et c'est réglé. `sealed` veut dire que le service n'a pas
+su ouvrir la clé : reviens en arrière avec `synsec recover`, qui rescelle avec
+la protection précédente. Le code de récupération imprimé à l'installation
+reste valable dans tous les cas.
 
 Si le TPM n'existe vraiment pas, alors BitLocker.
 

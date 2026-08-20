@@ -164,3 +164,31 @@ func TestWhatTheChipClaims(t *testing.T) {
 		t.Errorf("nom = %q", name)
 	}
 }
+
+// La liste d'accès est ce qui décide si le service redémarre : elle donne la
+// clé à LocalSystem, sous lequel tourne SYNSEC, alors que la clé est créée par
+// la personne qui lance l'installation dans une invite élevée.
+//
+// Le test la pose sur une clé d'utilisateur, faute des droits nécessaires à
+// une clé de machine. Ce qu'il prouve : la traduction du SDDL et la forme de
+// l'appel à CNG. Ce qu'il ne prouve pas : que LocalSystem ouvre effectivement
+// la clé de production, ce qui se vérifie en redémarrant le service.
+func TestTheKeyAcceptsItsAccessList(t *testing.T) {
+	requireTPM(t)
+
+	prov, err := openPlatformProvider()
+	if err != nil {
+		t.Fatalf("openPlatformProvider: %v", err)
+	}
+	defer freeObject(prov)
+
+	key, err := openOrCreateKey(prov, testKeyFlags)
+	if err != nil {
+		t.Fatalf("openOrCreateKey: %v", err)
+	}
+	defer freeObject(key)
+
+	if err := grantServiceAccess(key); err != nil {
+		t.Fatalf("grantServiceAccess: %v", err)
+	}
+}

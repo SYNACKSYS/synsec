@@ -67,6 +67,19 @@ sudo chmod +x /usr/local/bin/synsec
 
 ## 2. Préparer le serveur
 
+**Ouvre une invite de commandes en administrateur.** C'est la première chose
+que `synsec init` vérifie, et il refuse sans : sceller la clé dans la puce TPM
+demande ces droits, et l'installation du service en aura besoin de toute
+façon.
+
+La commande annonce, **avant de créer quoi que ce soit**, sous quelle
+protection elle va travailler : les droits dont elle dispose, la puce si elle
+en trouve une, et sinon le repli qu'elle prendra et ce que ça coûte. Rien
+n'est écrit sur le disque avant que ce soit dit.
+
+Sur une machine où l'élévation est impossible et où tu préfères un serveur qui
+tourne, `synsec init -sans-elevation` installe sans la puce, en le disant.
+
 ```
 synsec init
 ```

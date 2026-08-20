@@ -18,6 +18,8 @@ func runInit(args []string) error {
 
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	fs.StringVar(&cfg.DataDir, "data", cfg.DataDir, "dossier de données")
+	sansElevation := fs.Bool("sans-elevation", false,
+		"installer sans droits administrateur, sans la puce TPM")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, strings.TrimSpace(`
 synsec init - prépare le serveur
@@ -34,6 +36,13 @@ Options :
 	}
 
 	if err := cfg.Prepare(); err != nil {
+		return err
+	}
+
+	// Avant d'ouvrir la base : dire sous quelle protection on va travailler,
+	// et refuser si la fenêtre ne permet pas d'obtenir celle que la machine
+	// offre. Rien n'est créé tant que ça n'a pas été annoncé.
+	if err := preflight(cfg.DataDir, *sansElevation); err != nil {
 		return err
 	}
 
@@ -60,14 +69,12 @@ Options :
 	return nil
 }
 
-// warnIfWeakerThanPossible dit tout haut qu'on a obtenu moins que ce que cette
-// machine offre.
+// warnIfWeakerThanPossible est le filet, pas l'annonce.
 //
-// Le repli existe pour que l'installation aboutisse quoi qu'il arrive, et
-// c'est bien. Ce qui ne va pas, c'est qu'il aboutisse sans que personne ne
-// sache qu'une meilleure protection était à portée : une invite élevée, un
-// interrupteur dans le firmware. Le silence ici coûte la seule garantie qui
-// survit au vol du disque.
+// L'annonce se fait avant l'installation, dans preflight. Ceci rattrape le cas
+// où le scellement retenu échoue en cours de route et où le repli s'applique :
+// on a alors obtenu autre chose que ce qui venait d'être promis, et se taire
+// serait pire que tout.
 func warnIfWeakerThanPossible(m *vault.Manager, obtenu string) {
 	meilleur := m.BestProvider()
 	if meilleur.Name() == obtenu {

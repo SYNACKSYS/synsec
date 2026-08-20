@@ -28,11 +28,7 @@ import (
 // une pile TPM dans le chemin le plus sensible du projet.
 
 var (
-	ncrypt   = syscall.NewLazyDLL("ncrypt.dll")
-	advapi32 = syscall.NewLazyDLL("advapi32.dll")
-
-	procStringToSecurityDescriptor = advapi32.NewProc("ConvertStringSecurityDescriptorToSecurityDescriptorW")
-	procLocalFreeSD                = syscall.NewLazyDLL("kernel32.dll").NewProc("LocalFree")
+	ncrypt = syscall.NewLazyDLL("ncrypt.dll")
 
 	procOpenStorageProvider = ncrypt.NewProc("NCryptOpenStorageProvider")
 	procOpenKey             = ncrypt.NewProc("NCryptOpenKey")
@@ -67,40 +63,23 @@ const (
 	// NTE_PERM : les clés machine demandent des droits administrateur. C'est
 	// le premier mur sur lequel on tombe, et le code seul ne le dit pas.
 	ntePerm = 0x80090010
-
-	// daclSecurityInformation dit à CNG que le descripteur fourni ne porte que
-	// la liste d'accès.
-	daclSecurityInformation = 0x00000004
-
-	// keyAccess donne la clé au compte du service et aux administrateurs.
-	//
-	// C'est le point qui décide si le serveur redémarre. « synsec init » est
-	// lancé par une personne dans une invite élevée, le service tourne en
-	// LocalSystem : sans cette liste posée à la main, on retombe sur le piège
-	// que DPAPI a déjà coûté une fois, une clé que seul l'installateur sait
-	// rouvrir et un service qui boucle sur son démarrage.
-	//
-	// SY est LocalSystem, BA le groupe Administrateurs.
-	//
-	// La propriété n'est pas imposée ici, et c'est un choix documenté. Mesuré
-	// sur une vraie puce : un compte garde l'accès à la clé qu'il a créée même
-	// quand la liste cesse de le nommer, parce qu'un propriétaire peut
-	// toujours réécrire cette liste. La liste seule ne suffirait donc pas.
-	//
-	// Ce qui la rend suffisante est ailleurs : « synsec init » refuse de
-	// s'exécuter sans élévation. Le propriétaire de la clé est donc un compte
-	// administrateur, jamais un utilisateur ordinaire - lequel n'est ni
-	// propriétaire, ni nommé dans la liste.
-	//
-	// Forcer « O:BA » a été essayé et rejeté : la pose du propriétaire échoue
-	// avec ERROR_INVALID_OWNER quand le processus n'a pas les droits, ce qui
-	// ferait retomber toute installation sur DPAPI au moindre écart.
-	keyAccess = "D:(A;;GA;;;SY)(A;;GA;;;BA)"
 )
 
 // machineKey est le jeu de drapeaux de la production : une clé de la machine,
 // pas de l'utilisateur, et aucune boîte de dialogue - le service n'a pas de
 // bureau pour l'afficher.
+//
+// Ce drapeau décide de deux choses, et c'est pour ça qu'il suffit. La clé va
+// dans le magasin des clés système - ProgramData\Microsoft\Crypto\SystemKeys
+// - au lieu du magasin de l'utilisateur, donc LocalSystem, sous lequel tourne
+// le service, la retrouve. Et sa création demande des droits administrateur,
+// donc un utilisateur ordinaire ne peut ni la poser ni s'en faire
+// propriétaire.
+//
+// Une liste d'accès posée à la main a été écrite puis retirée : elle
+// n'ajoutait rien à ce que le magasin système garantit déjà, et faisait
+// dépendre l'installation d'une propriété que tous les fournisseurs ne
+// supportent pas.
 const machineKey = ncryptMachineKeyFlag | ncryptSilentFlag
 
 // WindowsTPM protège la clé d'enveloppe avec une clé RSA persistée dans le TPM.
@@ -268,57 +247,7 @@ func openOrCreateKey(prov uintptr, flags uint32) (uintptr, error) {
 		freeObject(key)
 		return 0, fmt.Errorf("unseal: NCryptFinalizeKey : %s", ncryptError(ret))
 	}
-
-	// Posé après la finalisation, et l'échec est fatal : une clé que le
-	// service ne peut pas ouvrir vaut moins qu'une absence de clé, parce
-	// qu'elle ne se découvre qu'au redémarrage suivant. Refuser ici fait
-	// retomber l'installation sur DPAPI, qui marche.
-	if flags&ncryptMachineKeyFlag != 0 {
-		if err := grantServiceAccess(key); err != nil {
-			freeObject(key)
-			return 0, err
-		}
-	}
 	return key, nil
-}
-
-// grantServiceAccess écrit la liste d'accès de la clé.
-func grantServiceAccess(key uintptr) error {
-	sddl, err := syscall.UTF16PtrFromString(keyAccess)
-	if err != nil {
-		return err
-	}
-
-	var sd uintptr
-	var size uint32
-	ret, _, callErr := procStringToSecurityDescriptor.Call(
-		uintptr(unsafe.Pointer(sddl)),
-		1, // SDDL_REVISION_1
-		uintptr(unsafe.Pointer(&sd)),
-		uintptr(unsafe.Pointer(&size)),
-	)
-	if ret == 0 {
-		return fmt.Errorf("unseal: liste d'accès de la clé TPM : %w", callErr)
-	}
-	defer procLocalFreeSD.Call(sd) //nolint:errcheck // rien à faire d'un échec de libération
-
-	property, err := syscall.UTF16PtrFromString("Security Descr")
-	if err != nil {
-		return err
-	}
-	ret, _, _ = procSetProperty.Call(
-		key,
-		uintptr(unsafe.Pointer(property)),
-		sd,
-		uintptr(size),
-		uintptr(daclSecurityInformation|ncryptSilentFlag),
-	)
-	if int32(ret) != 0 {
-		return fmt.Errorf("unseal: la clé TPM refuse sa liste d'accès : %s "+
-			"(sans elle, le service ne pourrait pas ouvrir le coffre au démarrage)",
-			ncryptError(ret))
-	}
-	return nil
 }
 
 func setLength(key uintptr, bits uint32) error {

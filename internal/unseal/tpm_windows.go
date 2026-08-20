@@ -81,6 +81,20 @@ const (
 	// rouvrir et un service qui boucle sur son démarrage.
 	//
 	// SY est LocalSystem, BA le groupe Administrateurs.
+	//
+	// La propriété n'est pas imposée ici, et c'est un choix documenté. Mesuré
+	// sur une vraie puce : un compte garde l'accès à la clé qu'il a créée même
+	// quand la liste cesse de le nommer, parce qu'un propriétaire peut
+	// toujours réécrire cette liste. La liste seule ne suffirait donc pas.
+	//
+	// Ce qui la rend suffisante est ailleurs : « synsec init » refuse de
+	// s'exécuter sans élévation. Le propriétaire de la clé est donc un compte
+	// administrateur, jamais un utilisateur ordinaire - lequel n'est ni
+	// propriétaire, ni nommé dans la liste.
+	//
+	// Forcer « O:BA » a été essayé et rejeté : la pose du propriétaire échoue
+	// avec ERROR_INVALID_OWNER quand le processus n'a pas les droits, ce qui
+	// ferait retomber toute installation sur DPAPI au moindre écart.
 	keyAccess = "D:(A;;GA;;;SY)(A;;GA;;;BA)"
 )
 

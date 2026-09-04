@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"fmt"
+	"runtime"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -31,6 +32,58 @@ var DefaultArgon2 = Argon2Params{Memory: 64 * 1024, Time: 3, Threads: 4}
 // LowMemoryArgon2 suits small single-board computers where a 64 MiB spike
 // during login would be felt.
 var LowMemoryArgon2 = Argon2Params{Memory: 16 * 1024, Time: 4, Threads: 2}
+
+// DerivationConcurrency is how many password derivations may run at once.
+//
+// Two per core would buy nothing: the work is memory-bound rather than
+// CPU-bound. The clamp does more than schedule, though - it fixes the peak
+// resident memory a burst of sign-ins can cost, which is exactly what
+// HostParams weighs. That is why it lives here, beside the cost it bounds,
+// rather than in the limiter that enforces it.
+func DerivationConcurrency() int {
+	n := runtime.NumCPU()
+	if n < 2 {
+		return 2
+	}
+	if n > 4 {
+		return 4
+	}
+	return n
+}
+
+// HostParams returns the cost to use for passwords chosen on this machine.
+//
+// The two profiles above existed from the start, and nothing ever selected
+// the lighter one: every machine got the 64 MiB default, including the
+// Raspberry Pi and the small Synology that the manual recommends by name. A
+// comment promising a behaviour the code does not have is worse than no
+// comment, so the choice is made here.
+//
+// What decides is the peak, not the machine's label: DerivationConcurrency
+// sign-ins may derive at once, so a burst costs that many working sets at the
+// same time. A transient spike is allowed one eighth of physical memory -
+// enough that a household server also running a home automation box is not
+// pushed into swap by four people signing in together.
+//
+// A machine whose memory cannot be read keeps the default. Weakening password
+// hashing on a host nobody has measured would be the wrong way to be wrong.
+func HostParams() Argon2Params {
+	total, ok := totalMemory()
+	if !ok {
+		return DefaultArgon2
+	}
+	return paramsFor(total, DerivationConcurrency())
+}
+
+// paramsFor is HostParams without the machine, so the rule can be tested on
+// sizes no one here owns.
+func paramsFor(totalBytes uint64, concurrent int) Argon2Params {
+	peak := uint64(concurrent) * uint64(DefaultArgon2.Memory) * 1024
+	if peak > totalBytes/8 {
+		return LowMemoryArgon2
+	}
+	return DefaultArgon2
+}
 
 func (p Argon2Params) valid() error {
 	switch {

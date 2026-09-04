@@ -40,12 +40,15 @@ var (
 	ErrPasswordTooLong = fmt.Errorf("auth: password must be under %d characters", MaxPasswordLength)
 )
 
-// HashPassword derives a verifier for a newly chosen password.
-// HashPassword derives a verifier, waiting its turn if the server is already
-// deriving as many as it will hold at once.
+// HashPassword derives a verifier for a newly chosen password, waiting its
+// turn if the server is already deriving as many as it will hold at once.
+//
+// The cost comes from the machine rather than from a constant: a small
+// single-board computer gets the lighter profile, everything else the default.
+// See crypto.HostParams.
 func HashPassword(password string) (store.Credentials, error) {
 	return withSlot(func() (store.Credentials, error) {
-		return hashPasswordWith(password, crypto.DefaultArgon2)
+		return hashPasswordWith(password, crypto.HostParams())
 	})
 }
 
@@ -119,7 +122,12 @@ func verifyPassword(cred store.Credentials, password string) bool {
 // parameters than the current default, so a successful sign-in can quietly
 // upgrade it.
 func NeedsRehash(cred store.Credentials) bool {
-	d := crypto.DefaultArgon2
+	// Measured against what this machine would choose today, not against the
+	// heaviest profile that exists. Comparing to the constant would mean a
+	// small machine flagged every one of its own passwords as too weak, and
+	// quietly raised them back to the cost it was spared - undoing the choice
+	// at the first successful sign-in.
+	d := crypto.HostParams()
 	return cred.Params.Memory < d.Memory || cred.Params.Time < d.Time
 }
 

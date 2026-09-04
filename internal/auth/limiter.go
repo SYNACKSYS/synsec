@@ -2,19 +2,20 @@ package auth
 
 import (
 	"errors"
-	"runtime"
 	"sync"
 	"time"
+
+	"synsec/internal/crypto"
 )
 
 // ErrBusy means the server is already deriving as many passwords as it will
 // hold in memory at once.
 var ErrBusy = errors.New("auth: too many password derivations at once")
 
-// Password derivation is memory-hard on purpose: 64 MiB and four threads per
-// attempt make guessing expensive. Unbounded, that same cost is a weapon.
-// Twenty simultaneous sign-in attempts would ask for 1.3 GiB, which is more
-// than the machines SYNSEC is built for have to spare.
+// Password derivation is memory-hard on purpose: up to 64 MiB and four
+// threads per attempt make guessing expensive. Unbounded, that same cost is a
+// weapon. Twenty simultaneous sign-in attempts would ask for 1.3 GiB, which is
+// more than the machines SYNSEC is built for have to spare.
 //
 // So derivations run a few at a time and the rest wait their turn. What this
 // buys is that a flood slows sign-ins down instead of taking the server out,
@@ -33,16 +34,10 @@ var (
 const maxWait = 5 * time.Second
 
 func initLimiter() {
-	// Two derivations per core, capped: the work is memory-bound rather than
-	// CPU-bound, so more parallelism buys nothing and costs a great deal of
-	// resident memory.
-	concurrent := runtime.NumCPU()
-	if concurrent < 2 {
-		concurrent = 2
-	}
-	if concurrent > 4 {
-		concurrent = 4
-	}
+	// The count lives in crypto, beside the cost it bounds: how many
+	// derivations run at once is what fixes the peak resident memory, and
+	// that peak is what decides which profile this machine hashes with.
+	concurrent := crypto.DerivationConcurrency()
 	slots = make(chan struct{}, concurrent)
 
 	// The waiting room is bounded too. Beyond it, requests are refused

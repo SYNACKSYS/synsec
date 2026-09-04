@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"synsec/internal/config"
+	"synsec/internal/crypto"
 	"synsec/internal/store"
 	"synsec/internal/vault"
 )
@@ -143,11 +144,34 @@ func printRecoveryKit(cfg config.Config, res vault.InitResult) {
 		fmt.Printf("  %s\n", wrap(res.Protection.Caveat, 64, "  "))
 	}
 
+	printPasswordCost()
+
 	fmt.Println()
 	fmt.Printf("  Dossier de données : %s\n", cfg.DataDir)
 	fmt.Println()
 	fmt.Println("  Démarre le serveur avec :  synsec serve")
 	fmt.Println()
+}
+
+// printPasswordCost ne dit rien quand il n'y a rien à dire.
+//
+// Le coût par défaut est ce que tout le monde attend, l'annoncer serait du
+// bruit. Le profil allégé, lui, est un choix fait à la place du propriétaire
+// sur sa machine : le taire reviendrait à décider pour lui en silence, ce que
+// l'installation ne fait nulle part ailleurs.
+func printPasswordCost() {
+	if crypto.HostParams() == crypto.DefaultArgon2 {
+		return
+	}
+
+	fmt.Println()
+	fmt.Println("  Mots de passe : calcul allégé")
+	fmt.Printf("  %s\n", wrap("Cette machine a peu de mémoire pour le nombre "+
+		"de connexions qu'elle peut traiter en même temps. Le calcul qui "+
+		"protège les mots de passe est donc allégé, pour qu'une arrivée "+
+		"simultanée ne la pousse pas à bout. Ils restent protégés, un peu "+
+		"moins fortement, et c'est le bon compromis sur un ordinateur "+
+		"monocarte.", 64, "  "))
 }
 
 // wrap breaks a line at word boundaries so a terminal window of ordinary width

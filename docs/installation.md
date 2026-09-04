@@ -170,6 +170,18 @@ Sans TPM ni BitLocker, SYNSEC le dit franchement à l'installation : la clé dor
 > dédié ne sont pas des options de confort : ce sont les fondations sur
 > lesquelles tout le reste s'appuie.
 
+**Sur une petite machine, l'installation annonce aussi un calcul allégé.** Le
+hachage des mots de passe est volontairement lent et gourmand en mémoire, ce
+qui rend le devinage coûteux. Sur un ordinateur monocarte, plusieurs
+connexions simultanées demanderaient plus de mémoire que la machine n'en a à
+prêter : SYNSEC prend alors un profil plus léger, et le dit. Les mots de passe
+restent protégés, un peu moins fortement.
+
+Le choix se fait à la création de chaque mot de passe et se conserve avec lui,
+donc changer de machine ne rend personne inaccessible. Les jetons d'appareil ne
+sont pas concernés : ils sont tirés au hasard sur 256 bits et vérifiés en
+SHA-256, ce qui ne coûte rien même à chaque minute.
+
 ### Où vont les données
 
 | Plateforme | Dossier |

@@ -17,6 +17,33 @@ poser, rien à installer à côté.
 En cas de doute sur l'architecture, sur la machine cible : `uname -m`. `x86_64`
 donne `amd64`, `aarch64` donne `arm64`, `armv7l` donne `armv7`.
 
+### Ce qui a été exécuté, et ce qui ne l'a pas été
+
+Compiler pour une plateforme ne prouve pas qu'on y tourne. SYNSEC compilait
+pour Linux depuis des mois quand la première vraie machine Ubuntu a sorti six
+défauts en une heure, dont un service qui s'installait sans démarrer en
+annonçant le contraire. Donc, franchement :
+
+| Cible | État |
+|---|---|
+| Windows amd64 | en service quotidien |
+| Linux amd64 | vérifié sur deux machines réelles, avec puce TPM et sans |
+| Linux arm64 et armv7 | suite de tests complète, puis `init`, scellement et serveur interrogé, le tout sous émulation. Jamais sur du vrai matériel |
+| macOS Intel et Apple | compile et passe l'analyse statique. Jamais exécuté |
+
+**macOS est le trou.** Personne n'y a lancé SYNSEC. Ce qu'on sait sans
+l'avoir essayé : la clé y sera protégée par un fichier réservé au service,
+faute de liaison au trousseau, et l'installation en service n'existe pas. Le
+programme le dit et propose de tourner au premier plan.
+
+Si tu fais tourner SYNSEC sur un Mac, ouvre une
+[issue](https://github.com/SYNACKSYS/synsec/issues) même pour dire que tout va
+bien. C'est la seule chose qui fera bouger cette ligne.
+
+Sur Raspberry Pi et Synology ARM, l'émulation prouve que le programme
+fonctionne, pas qu'il est confortable : les temps mesurés sous émulation ne
+veulent rien dire. Un retour sur la lenteur de la connexion est le bienvenu.
+
 Chaque release contient un fichier `SHA256SUMS`. Vérifier ce que tu as
 téléchargé prend dix secondes et vaut la peine pour un logiciel qui va détenir
 tous tes mots de passe :

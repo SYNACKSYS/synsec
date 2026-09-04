@@ -80,6 +80,24 @@ n'est écrit sur le disque avant que ce soit dit.
 Sur une machine où l'élévation est impossible et où tu préfères un serveur qui
 tourne, `synsec init -sans-elevation` installe sans la puce, en le disant.
 
+**Sur Linux, vérifie d'abord que la puce est joignable :**
+
+```
+systemd-creds has-tpm2
+```
+
+La réponse attendue est `yes`. Si elle est `partial` avec une ligne
+`-libraries`, la puce est bien présente et son pilote chargé, mais les
+bibliothèques TPM2 manquent - c'est l'état d'une Ubuntu Server fraîche. Un
+paquet suffit :
+
+```
+sudo apt install libtss2-rc0t64
+```
+
+Sans lui, `synsec init` scelle la clé dans un fichier au lieu de la puce. Il le
+dit, mais autant ne pas avoir à le rattraper.
+
 ```
 synsec init
 ```

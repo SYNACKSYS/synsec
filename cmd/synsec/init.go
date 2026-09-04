@@ -153,7 +153,7 @@ func printRecoveryKit(cfg config.Config, res vault.InitResult) {
 // wrap breaks a line at word boundaries so a terminal window of ordinary width
 // does not scramble the warning that matters most.
 func wrap(s string, width int, indent string) string {
-	words := strings.Fields(s)
+	words := souder(strings.Fields(s))
 	if len(words) == 0 {
 		return ""
 	}
@@ -174,4 +174,26 @@ func wrap(s string, width int, indent string) string {
 		}
 	}
 	return b.String()
+}
+
+// souder colle les guillemets français au mot qu'ils encadrent.
+//
+// Sans ça, « ... sceller » se coupe en deux et le guillemet fermant arrive
+// seul en début de ligne suivante. C'est laid partout, mais surtout dans un
+// écran qui annonce une protection dégradée : ces messages sont lus une fois,
+// au moment où la confiance se joue.
+func souder(words []string) []string {
+	soude := make([]string, 0, len(words))
+	for _, w := range words {
+		dernier := len(soude) - 1
+		switch {
+		case w == "»" && dernier >= 0:
+			soude[dernier] += " " + w
+		case dernier >= 0 && strings.HasSuffix(soude[dernier], "«"):
+			soude[dernier] += " " + w
+		default:
+			soude = append(soude, w)
+		}
+	}
+	return soude
 }

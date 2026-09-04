@@ -78,7 +78,7 @@ sceller la clé dans la puce demande une invite administrateur.
 	// 3. Le repli est annoncé pour ce qu'il est, avant, pas après.
 	if !protection.ResistsDiskTheft {
 		if capable.Name() == choisi.Name() {
-			fmt.Println("  ATTENTION : aucune puce TPM utilisable sur cette machine.")
+			fmt.Println("  ATTENTION : pas de puce TPM utilisable pour l'instant.")
 		} else {
 			fmt.Println("  ATTENTION : la puce existe mais ne sera pas utilisée.")
 		}

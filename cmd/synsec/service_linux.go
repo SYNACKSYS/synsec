@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"synsec/internal/config"
 )
@@ -82,7 +83,53 @@ func installService(cfg config.Config) error {
 	if err := systemctl("daemon-reload"); err != nil {
 		return err
 	}
-	return systemctl("enable", "--now", "synsec.service")
+	if err := systemctl("enable", "--now", "synsec.service"); err != nil {
+		return err
+	}
+	return confirmRunning(exe)
+}
+
+// confirmRunning attend que le service soit vraiment parti.
+//
+// « systemctl enable --now » rend la main dès que systemd a accepté la
+// demande, pas quand le programme tourne. Sans cette vérification,
+// l'installation annonçait « installé et démarré » pendant que le service
+// bouclait sur son propre démarrage - constaté sur une machine Ubuntu, où le
+// message était faux et où rien ne le disait.
+func confirmRunning(exe string) error {
+	// Actif une fois ne suffit pas. Type=simple fait dire « active » à systemd
+	// dès que le processus est lancé, et un service qui meurt aussitôt repasse
+	// par « active » à chaque redémarrage : regarder une seule fois, au mauvais
+	// instant, revient à confirmer une panne. On demande donc qu'il tienne.
+	stable := 0
+	for i := 0; i < 15; i++ {
+		out, _ := exec.Command("systemctl", "is-active", "synsec.service").Output()
+		if strings.TrimSpace(string(out)) == "active" {
+			stable++
+			if stable >= 4 {
+				return nil
+			}
+		} else {
+			stable = 0
+		}
+		time.Sleep(time.Second)
+	}
+
+	message := "le service a été installé mais ne démarre pas.\n" +
+		"        Son journal dit pourquoi :  journalctl -u synsec.service -n 20"
+
+	// La cause la plus probable, et la moins devinable. L'unité pose
+	// ProtectHome, qui rend /home et /root inatteignables au service : un
+	// binaire rangé là ne peut pas même être exécuté, et systemd répond
+	// 203/EXEC sans autre explication.
+	if strings.HasPrefix(exe, "/home/") || strings.HasPrefix(exe, "/root/") {
+		message += "\n\n        Probable : l'exécutable est dans " + exe + ".\n" +
+			"        L'unité interdit au service d'atteindre /home et /root.\n" +
+			"        Déplace-le, puis réinstalle :\n" +
+			"          sudo cp " + exe + " /usr/local/bin/synsec\n" +
+			"          sudo /usr/local/bin/synsec service install"
+	}
+	return errors.New(message)
 }
 
 func uninstallService() error {

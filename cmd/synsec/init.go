@@ -120,7 +120,7 @@ func printRecoveryKit(cfg config.Config, res vault.InitResult) {
 	fmt.Println()
 	fmt.Println("  Ce code ne sera plus jamais affiché. Il est la seule façon de")
 	fmt.Println("  rouvrir tes secrets si cette machine tombe en panne, si tu")
-	fmt.Println("  réinstalles Windows, ou si le compte de service change.")
+	fmt.Println("  réinstalles le système, ou si le compte de service change.")
 	fmt.Println()
 	fmt.Println("  Range-le ailleurs que sur ce serveur. Une feuille de papier")
 	fmt.Println("  dans un tiroir fait très bien l'affaire.")
@@ -128,15 +128,19 @@ func printRecoveryKit(cfg config.Config, res vault.InitResult) {
 	fmt.Println(line)
 	fmt.Println()
 
-	fmt.Printf("  Protection de la clé : %s\n", res.Provider)
+	fmt.Printf("  Protection de la clé : %s\n", providerLabel(res.Provider))
 	fmt.Printf("  %s\n", wrap(res.Protection.Summary, 64, "  "))
 	if res.Protection.Caveat != "" {
 		fmt.Println()
+		// L'étiquette sur sa propre ligne : mise devant le texte, elle mangeait
+		// quatorze colonnes de la première ligne seulement, qui débordait alors
+		// que les suivantes tombaient juste.
 		if res.Protection.ResistsDiskTheft {
-			fmt.Printf("  À savoir : %s\n", wrap(res.Protection.Caveat, 64, "  "))
+			fmt.Println("  À savoir :")
 		} else {
-			fmt.Printf("  ATTENTION : %s\n", wrap(res.Protection.Caveat, 64, "  "))
+			fmt.Println("  ATTENTION :")
 		}
+		fmt.Printf("  %s\n", wrap(res.Protection.Caveat, 64, "  "))
 	}
 
 	fmt.Println()

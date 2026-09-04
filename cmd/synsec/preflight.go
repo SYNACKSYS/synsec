@@ -98,13 +98,3 @@ sceller la clé dans la puce demande une invite administrateur.
 	fmt.Println()
 	return nil
 }
-
-// noChipAdvice dit quoi faire, plutôt que de laisser le constat en l'air.
-//
-// Le cas le plus fréquent, et de loin, n'est pas une machine sans puce : c'est
-// une machine dont la puce dort dans le firmware, désactivée par défaut.
-func noChipAdvice() string {
-	return "Beaucoup de cartes ont une puce désactivée en usine : cherche " +
-		"fTPM (AMD) ou PTT (Intel) dans le BIOS. Une fois activée, " +
-		"« synsec maintenance sceller » déplace la clé sans rien réinstaller."
-}

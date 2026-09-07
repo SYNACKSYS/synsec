@@ -9,13 +9,6 @@ chez toi, chiffrés, et tes appareils viennent les chercher tout seuls.
 Pensé pour un particulier qui fait de la domotique - Home Assistant, Zigbee,
 MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
 
-> **En français, délibérément.** L'interface, les manuels et les messages
-> d'erreur sont en français, parce que ce logiciel a été écrit pour une maison
-> française et pour des gens qui ne devraient pas avoir à lire l'anglais pour
-> mettre leurs propres mots de passe à l'abri. Une [page en
-> anglais](README.en.md) existe pour que le reste du monde puisse juger de
-> l'idée. Le code, l'API et l'historique, eux, sont en anglais.
-
 ## Ce que ça fait
 
 - **Un coffre par usage.** « Maison », « Sauvegardes », « Bureau ». Chaque

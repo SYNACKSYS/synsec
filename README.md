@@ -106,7 +106,7 @@ les cibles - Linux, macOS, Synology, Raspberry Pi.
 
 ## Licence
 
-Copyright © 2026 Cyril Pineiro - SYNACKSYS
+Copyright © 2026 Cyril Pineiro - [SYNACKSYS](https://synacksys.fr/open-source/)
 
 **GNU AGPL-3.0**, voir [LICENSE](LICENSE).
 
@@ -119,7 +119,7 @@ L'interface expose la mention légale et l'adresse du code sur `/source`, comme
 la licence le demande. Renseigne-la à la compilation :
 
 ```
-go build -ldflags "-X synsec/internal/web.SourceURL=https://exemple/synsec" ./cmd/synsec
+go build -ldflags "-X synsec/internal/web.SourceURL=https://git.exemple.fr/moi/synsec" ./cmd/synsec
 ```
 
 Les quatre bibliothèques utilisées sont sous licence BSD à trois clauses, qui

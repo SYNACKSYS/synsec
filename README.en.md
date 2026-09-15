@@ -9,12 +9,6 @@ devices come and fetch them on their own.
 Built for someone running home automation - Home Assistant, Zigbee, MQTT,
 backup scripts - rather than for a company.
 
-> **Written in French, on purpose.** The interface, the manuals and the error
-> messages are French, because this was built for a French household and for
-> people who should not have to read English to keep their own passwords safe.
-> This page exists so the rest of the world can decide whether the idea is
-> worth borrowing. The code, the API and the commit history are English.
-
 ## What it does
 
 - **One vault per purpose.** "Maison", "Sauvegardes", "Bureau". Each vault has

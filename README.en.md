@@ -15,8 +15,8 @@ backup scripts - rather than for a company.
   its own encryption key.
 - **A secret is an entry** with a readable label and a technical identifier.
   You write "Mot de passe MQTT", your devices ask for `mot_de_passe_mqtt`.
-- **Bring what you already have**: drop your Home Assistant `secrets.yaml` or
-  your `.env` into the interface, or run `synsec import Maison secrets.yaml`.
+- **Bring what you already have**: pick your Home Assistant `secrets.yaml` or
+  your `.env` in the interface, or run `synsec import Maison secrets.yaml`.
 - **A web interface and a command line that are equals**: same vaults, same
   secrets, same rules. A token-based **REST API** for devices.
 - **Everyone sees only what is theirs** or what was shared with them, the

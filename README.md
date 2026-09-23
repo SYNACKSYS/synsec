@@ -65,12 +65,14 @@ protège. Une sauvegarde égarée ou un dump de la base sont inexploitables :
 ce qui ouvre la clé n'est pas dedans. Chaque lecture et chaque écriture
 laissent une trace nominative dans le journal d'audit.
 
-Le **vol du disque entier** demande une précision. Sur un Linux à TPM, la clé
-ne quitte jamais la puce et le disque seul ne sert à rien. Sur Windows, ce qui
-déchiffre la clé DPAPI se trouve sur ce même disque : il faut chiffrer le
-volume, avec BitLocker, pour que la promesse tienne. Les commandes sont dans
-[l'installation](docs/installation.md#7-chiffrer-le-disque), et c'est une
-étape à faire, pas une option.
+Le **vol du disque entier** demande une précision, et ce qui décide est la
+puce, pas le système. Avec un TPM, sur Windows comme sur Linux, la clé est
+scellée dedans et n'en sort jamais : le disque seul ne sert à rien. Sans puce,
+ce qui ouvre la clé se trouve sur ce même disque - DPAPI sous Windows, un
+fichier réservé au service sous Linux - et seul le chiffrement du volume,
+BitLocker ou LUKS, rattrape ça. Les commandes sont dans
+[l'installation](docs/installation.md#7-chiffrer-le-disque) : sur une machine
+sans puce, c'est une étape à faire, pas une option.
 
 **Non couvert.** La clé racine est déscellée automatiquement au démarrage -
 c'est ce qui permet à ta box domotique de redémarrer à trois heures du matin

@@ -152,15 +152,22 @@ La commande indique aussi comment la clé est protégée sur ta machine :
 Les deux colonnes ne disent pas la même chose, et la différence compte.
 
 Une **sauvegarde du dossier de données** restaurée ailleurs est inexploitable
-sur Windows comme sur un Linux à TPM : ce qui ouvre la clé n'y figure pas.
+partout, sauf sur un Linux sans puce : c'est le seul cas où la clé se trouve
+dans ce dossier même, à côté de la base.
 
-Un **disque entier** est un autre sujet. Sous Windows, ce qui déchiffre la clé
-DPAPI vit ailleurs sur ce même disque : qui repart avec le disque repart avec
-les deux moitiés. C'est **BitLocker** qui ferme cet écart, pas SYNSEC. Sur un
-Linux à TPM, la clé ne quitte jamais la puce, et le disque seul ne suffit pas.
+Un **disque entier** est un autre sujet, et c'est la puce qui tranche, pas le
+système. **Avec un TPM**, sous Windows comme sous Linux, la clé est scellée
+dedans et n'en sort jamais : le disque seul ne suffit pas.
 
-Sans TPM ni BitLocker, SYNSEC le dit franchement à l'installation : la clé dort
-à côté de la base.
+**Sans puce**, ce qui ouvre la clé voyage avec le disque. Sous Windows, ce qui
+déchiffre la clé DPAPI vit ailleurs sur ce même volume : qui repart avec le
+disque repart avec les deux moitiés. Sous Linux, c'est plus direct encore, la
+clé est dans un fichier à côté de la base. Dans les deux cas c'est le
+chiffrement du volume qui ferme l'écart, **BitLocker** ou **LUKS**, pas SYNSEC.
+
+SYNSEC ne laisse pas deviner dans quel cas tu te trouves : l'installation
+annonce la protection retenue, et ce qu'elle vaut, avant d'écrire quoi que ce
+soit sur le disque.
 
 > **Le niveau de sécurité de SYNSEC est celui de la machine qui l'héberge.**
 > Il n'y a pas de magie : chiffrer déplace le problème vers la clé, et cette

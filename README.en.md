@@ -66,12 +66,14 @@ key, itself sealed by a root key the operating system protects. A lost backup
 or a database dump is unusable: what opens the key is not inside it. Every read
 and every write leaves a named trace in the audit log.
 
-**Whole-disk theft** needs a distinction. With a TPM - a chip on Windows or
-Linux - the key never leaves it and the disk alone is worthless. Without one,
-on Windows, what decrypts the DPAPI key sits on that same disk: the volume has
-to be encrypted, with BitLocker, for the promise to hold. The commands are in
-[the installation guide](docs/installation.md#7-chiffrer-le-disque), and it is
-a step to take, not an option.
+**Whole-disk theft** needs a distinction, and what settles it is the chip, not
+the operating system. With a TPM, on Windows as on Linux, the key is sealed
+inside it and never comes out: the disk alone is worthless. Without one, what
+opens the key sits on that same disk - DPAPI on Windows, a file reserved to
+the service on Linux - and only volume encryption, BitLocker or LUKS, makes up
+for it. The commands are in
+[the installation guide](docs/installation.md#7-chiffrer-le-disque): on a
+machine without a chip, it is a step to take, not an option.
 
 **Not covered.** The root key is unsealed automatically at boot - that is what
 lets your home automation box come back at three in the morning with nobody

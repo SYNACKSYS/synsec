@@ -23,6 +23,10 @@ backup scripts - rather than for a company.
   server administrator included.
 - **Second factor, your choice**: a six-digit code or a FIDO2 key - YubiKey,
   SoloKey, Windows Hello, Touch ID. Both if you want.
+- **The master key is sealed in the machine's TPM** when there is one, on
+  Windows as on Linux: it never comes out, so it is not on the disk. Without a
+  chip, SYNSEC takes the fallback the system offers and says which one, before
+  installing anything.
 - **Everything is written down**, reads as well as writes. A secret's page
   shows who opened it, refusals included.
 - **Told when something is out of the ordinary**: a device refused, a vault

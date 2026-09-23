@@ -24,6 +24,10 @@ MQTT, scripts de sauvegarde - plutôt que pour une entreprise.
   l'administrateur du serveur compris.
 - **Second facteur au choix** : un code à six chiffres, ou une clé FIDO2 -
   YubiKey, SoloKey, Windows Hello, Touch ID. Les deux si tu veux.
+- **La clé maîtresse est scellée dans la puce TPM** de la machine quand elle
+  en a une, sous Windows comme sous Linux : elle n'en sort jamais et ne se
+  trouve donc pas sur le disque. Sans puce, SYNSEC prend le repli que le
+  système offre et annonce lequel, avant d'installer quoi que ce soit.
 - **Tout est écrit**, les lectures comme les écritures. La page d'un secret
   montre qui l'a ouvert, avec les refus.
 - **Prévenu quand ça sort de l'ordinaire** : un appareil refusé, un coffre
